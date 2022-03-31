@@ -5,7 +5,7 @@ packageList = ["CSV", "DataFrames", "DataFramesMeta",
 
 x = keys(Pkg.installed())
 for i in packageList
-	if (!i ∈ x)
+	if (!(i ∈ x))
 	Pkg.add(i)
 	end
 end
