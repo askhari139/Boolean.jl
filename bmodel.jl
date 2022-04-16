@@ -83,7 +83,6 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
         print("Network is too big")
         return 0
     end
-    finFreqFinal_df_list_list = []
     finFlagFreqFinal_df_list_list = []
     initFinFlagFreqFinal_df_list_list = []
     frust_df_list = []
@@ -91,7 +90,6 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
 
     for type in types
 
-        finFreqFinal_df_list = []
         finFlagFreqFinal_df_list = []
         initFinFlagFreqFinal_df_list = []
         frust_df_list = []
@@ -103,7 +101,6 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
             # state_df = dropmissing(state_df, disallowmissing = true)
             push!(frust_df_list, frust_df)
             # Frequnecy table 
-            finFreq_df = dfFreq(states_df, [:fin])
             #final states with flag
             finFlagFreq_df = dfFreq(states_df, [:fin, :flag])
 
@@ -112,19 +109,15 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
                 initFinFlagFreq_df = dfFreq(states_df, [:fin, :flag, :init])
                 push!(initFinFlagFreqFinal_df_list, initFinFlagFreq_df)
             end
-            push!(finFreqFinal_df_list, finFreq_df)
             push!(finFlagFreqFinal_df_list, finFlagFreq_df)
         end
 
-        finFreqFinal_df = finFreqFinal_df_list[1]
         # println(typeof(finFreqFinal_df))
         finFlagFreqFinal_df = finFlagFreqFinal_df_list[1]
         if init
             initFinFlagFreqFinal_df = initFinFlagFreqFinal_df_list[1]
         end
         for i in 2:reps
-            finFreqFinal_df = outerjoin(finFreqFinal_df, finFreqFinal_df_list[i], 
-                on = [:states], makeunique = true)
             finFlagFreqFinal_df = outerjoin(finFlagFreqFinal_df, 
                 finFlagFreqFinal_df_list[i], 
                 on = [:states, :flag], makeunique=true)
@@ -140,15 +133,6 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
             frust_df = vcat(frust_df, i)
         end
         frust_df = unique(frust_df, :fin)
-        finFreqFinal_df = meanSD(finFreqFinal_df, "frequency")
-        finFreqFinal_df = outerjoin(finFreqFinal_df, frust_df, 
-            on = :states => :fin, makeunique =true)
-        finFreqFinal_df = rename(finFreqFinal_df, 
-            Dict(:Avg => Symbol(join(["Avg", type])), 
-                :SD => Symbol(join(["SD", type])),
-                :frust => Symbol(join(["frust", type]))))
-        push!(finFreqFinal_df_list_list, finFreqFinal_df)
-
 
         finFlagFreqFinal_df = meanSD(finFlagFreqFinal_df, "frequency")
         finFlagFreqFinal_df = outerjoin(finFlagFreqFinal_df, frust_df, 
@@ -172,8 +156,6 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
 
         end
     end
-
-    finFreqFinal_df = finFreqFinal_df_list_list[1]
         # println(typeof(finFreqFinal_df))
     finFlagFreqFinal_df = finFlagFreqFinal_df_list_list[1]
     if init
@@ -182,8 +164,6 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     n = length(types)
     if n > 1
         for i in 2:n
-            finFreqFinal_df = outerjoin(finFreqFinal_df, finFreqFinal_df_list_list[i], 
-                on = [:states], makeunique = true)
             finFlagFreqFinal_df = outerjoin(finFlagFreqFinal_df, 
                 finFlagFreqFinal_df_list_list[i], 
                 on = [:states, :flag], makeunique=true)
@@ -204,10 +184,8 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     if stateRep == 0
         rootName = join([rootName, "0"])
     end
-    finFreqName = join([rootName, "_finFreq.csv"])
     finFlagFreqName = join([rootName, "_finFlagFreq.csv"])
 
-    CSV.write(finFreqName, finFreqFinal_df)
     CSV.write(finFlagFreqName, finFlagFreqFinal_df)
 
 
@@ -228,10 +206,10 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     end
     # return the dataframes
     if init
-        return(finFreqFinal_df, finFlagFreqFinal_df, 
+        return(finFlagFreqFinal_df, 
             initFinFlagFreqFinal_df)
     else
-        return(finFreqFinal_df, finFlagFreqFinal_df)
+        return(finFlagFreqFinal_df)
     end
 end
 
