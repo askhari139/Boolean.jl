@@ -1,7 +1,7 @@
 using Pkg
 
 packageList = ["CSV", "DataFrames", "DataFramesMeta",
-"SparseArrays", "Lazy", "LinearAlgebra"]
+"SparseArrays", "Lazy", "LinearAlgebra", "Pipe"]
 
 x = keys(Pkg.installed())
 for i in packageList

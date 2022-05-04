@@ -128,7 +128,7 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
             end
         end
 
-        frust_df = DataFrame()
+        frust_df = reduce(vcat, frust_df_list)
         for i in frust_df_list
             frust_df = vcat(frust_df, i)
         end

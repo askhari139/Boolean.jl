@@ -5,3 +5,4 @@ using DataFramesMeta
 using SparseArrays
 using Lazy
 using LinearAlgebra
+using Pipe

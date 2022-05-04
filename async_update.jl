@@ -1,4 +1,21 @@
-
+#=
+Author : Kishore Hari
+function name : asyncUpdate
+Description : simulate a network using ising formalism for multiple random initial conditions
+Inputs :
+    update_matrix : 2-D array; adjecency matrix of the network. each ij element depicts the edge from node i to node j.
+    nInit : integer; number of initial conditions to use for simulation
+    nIter : integer; maximum number of time steps for simulation
+    
+Active outputs :
+    state_df : DataFrame; 3 columns - [init, fin, flag]:
+        init : string; Initial state
+        fin : string; Final state
+        flag : integer; 1 - fin is a steady state, 0 - not
+    Nodes : string array; List of nodes with the order in which state is listed
+Passive outputs :
+    The function writes states_df to a csv file if csv = true in input
+=#
 function asyncUpdate(update_matrix::Array{Int,2},
     nInit::Int, nIter::Int)
     n_nodes = size(update_matrix,1)

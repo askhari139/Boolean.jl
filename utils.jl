@@ -57,19 +57,7 @@ function stateToDec(state::Array{Int,1}, binVec::Array{Int,1})
 end
 
 ## calculates frustration of a state
-function frustration(state::Array{Int,1}, 
-    nonZeros::Tuple{Array{Int64,1},Array{Int64,1},Array{Int64,1}})
-    frustration = 0
-    nEdges = length(nonZeros[1])
-    for (x,y,v) in zip(nonZeros...)
-        s = state[x]*state[y]*v
-        if s<0
-            frustration = frustration + 1
-        end
-    end
-    frustration = frustration/nEdges
-    return frustration
-end
+
 function frustration(state::Array{Int,1}, 
     nonZeros::Tuple{Array{Int64,1},Array{Int64,1},Array{Float64,1}})
     frustration = 0
@@ -99,24 +87,27 @@ function frustration0(state::Array{Int,1},
     return frustration
 end
 
+function getFreq(x)
+    y = x/sum(x)
+    return y
+end
 ## get frequency for select columns in a dataframe
 function dfFreq(state_df::DataFrame, cols::Array{Symbol, 1})
-    df = @> begin
-        state_df
-        DataFrames.groupby(cols)
-        DataFrames.combine(nrow => :Count)
-        @transform(frequency = :Count./sum(:Count))
-        select(push!(cols, :frequency))
-        rename(:fin => :states)
-    end
+    df = @pipe state_df |>
+        groupby(_, cols) |>
+        combine(_, nrow => :Count) |>
+        transform(_, :Count => getFreq => frequency) |>
+        select(_, push!(cols, :frequency)) |>
+        rename(_, :fin => :states)
     return df
 end
 
 function dfFreqGen(state_df::DataFrame, cols::Array{Symbol, 1})
-    df = DataFrames.groupby(state_df, cols)
-    df = DataFrames.combine(df, nrow => :Count)
-    df.frequency = df.Count./sum(df.Count)
-    df = select(df, push!(cols, :frequency))
+    df = @pipe state_df |>
+        groupby(_, cols) |>
+        combine(_, nrow => :Count) |>
+        transform(_, :Count => getFreq => frequency) |>
+        select(_, push!(cols, :frequency))
     return df
 end
 
@@ -148,13 +139,10 @@ function meanSD(df::DataFrame, keyword::String)
     cols = names(df)
     cols = cols[[occursin(keyword, i) for i in cols]]
     df_new = df[:, cols]
-    m = rowWise(df_new, avg)
-    s = rowWise(df_new, SD)
-    d = @> begin
-        df
-        @transform(Avg = m, SD = s)
-        select(Not(cols))
-    end
+    d = @pipe df |>
+        transfrom(_, cols => ByRow(avg) => Avg) |>
+        transform(_, cols => ByRow(SD) => SD) |>
+        select(_, Not(cols))
     return d
 end
 
