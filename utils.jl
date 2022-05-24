@@ -70,7 +70,6 @@ function frustration(state::Array{Int,1},
     frustration = frustration/nEdges
     return frustration
 end
-        
 function frustration(state::Array{Int,1}, 
     nonZeros::Tuple{Array{Int64,1},Array{Int64,1},Array{Float64,1}})
     frustration = 0
@@ -109,7 +108,7 @@ function dfFreq(state_df::DataFrame, cols::Array{Symbol, 1})
     df = @pipe state_df |>
         groupby(_, cols) |>
         combine(_, nrow => :Count) |>
-        transform(_, :Count => getFreq => frequency) |>
+        transform(_, :Count => getFreq => :frequency) |>
         select(_, push!(cols, :frequency)) |>
         rename(_, :fin => :states)
     return df
@@ -119,7 +118,7 @@ function dfFreqGen(state_df::DataFrame, cols::Array{Symbol, 1})
     df = @pipe state_df |>
         groupby(_, cols) |>
         combine(_, nrow => :Count) |>
-        transform(_, :Count => getFreq => frequency) |>
+        transform(_, :Count => getFreq => :frequency) |>
         select(_, push!(cols, :frequency))
     return df
 end
@@ -133,6 +132,8 @@ end
 ## calculate standard deviation
 function SD(x)
     m = avg(x)
+    x = [i for i in x]
+    # print(x)
     v = sum((x.-m).^2)/length(x)
     s = sqrt(v)
     return s
@@ -147,14 +148,20 @@ function rowWise(df::DataFrame, func::Function)
     return v
 end
 
+function replaceMissing(x)
+    x[ismissing.(x)] .= 0.0
+    return x
+end
+
 ## get mean and SD rowwise of columns containing a keyword in their name
 function meanSD(df::DataFrame, keyword::String)
     cols = names(df)
     cols = cols[[occursin(keyword, i) for i in cols]]
     df_new = df[:, cols]
     d = @pipe df |>
-        transfrom(_, cols => ByRow(avg) => Avg) |>
-        transform(_, cols => ByRow(SD) => SD) |>
+        transform(_, cols .=> replaceMissing .=> cols) |>
+        transform(_, AsTable(cols) => ByRow(avg) => :Avg) |>
+        transform(_, AsTable(cols) => ByRow(SD) => :SD) |>
         select(_, Not(cols))
     return d
 end
