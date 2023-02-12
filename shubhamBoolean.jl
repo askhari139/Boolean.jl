@@ -14,6 +14,7 @@ function stateChar(state::AbstractArray)
         end
         state[i] = y
     end
+    return state
 end
 
 function shubhamFrust(state::Array{Int,1}, 
@@ -31,6 +32,12 @@ function shubhamFrust(state::Array{Int,1},
     end
     frustration = frustration/nEdges
     return frustration
+end
+
+function stateConvert(state)
+    state = 2*state
+    state = join(["'", join(replace(x -> x < 0 ? x+2 : x+1, state)), "'"])
+    return state
 end
 
 function shubhamBoolean(update_matrix::Array{Int,2},
