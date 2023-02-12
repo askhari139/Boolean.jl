@@ -30,7 +30,7 @@ function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     update_matrix,Nodes = topo2interaction(topoFile, type)
     if shubham == true
         state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter)
-    if mode == "Async"
+    elseif mode == "Async"
         if stateRep == -1
             if randSim
                 state_df, frust_df = asyncRandUpdate(update_matrix, nInit, nIter, randVec)
