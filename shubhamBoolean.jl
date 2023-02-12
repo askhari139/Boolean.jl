@@ -28,6 +28,7 @@ function shubhamFrust(state::Array{Int,1},
                 frustration = frustration + 1
             else
                 frustration = frustration + 0.5
+            end
         end
     end
     frustration = frustration/nEdges
