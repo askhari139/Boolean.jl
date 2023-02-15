@@ -1,4 +1,4 @@
-include("/mnt/d/Github/Projects/Ongoing/Relative_boolean/bm_julia_package/bmodel.jl")
+include("/mnt/external4tb/Kishore/shubhamBoolean/Bmodel/bmodel.jl")
 using Base.Threads
 
 fileList = readdir()
@@ -12,8 +12,7 @@ end
 println(Threads.nthreads())
 
 Threads.@threads for topoFile in topoFiles
- 	y1 = @elapsed x = bmodel_reps(topoFile; nInit = 100000, nIter = 1000, mode = "Async", stateRep = -1, randSim=false)
- 	#y2 = @elapsed x = bmodel_reps(topoFile; nInit = 100000, nIter = 1000, mode = "Async", stateRep = 0, randSim=false)
+ 	y1 = @elapsed x = bmodel_reps(topoFile; nInit = 100000, nIter = 1000, mode = "Async", stateRep = -1, randSim=false, shubham = true)
  	println(topoFile, " - ", y1, " seconds.")
 end
 #for topoFile in topoFiles

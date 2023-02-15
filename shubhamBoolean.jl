@@ -17,7 +17,7 @@ function stateChar(state::AbstractArray)
     return state
 end
 
-function shubhamFrust(state::Array{Int,1}, 
+function shubhamFrust(state::Array{Float64,1}, 
     nonZeros::Tuple{Array{Int64,1},Array{Int64,1},Array{Float64,1}})
     frustration = 0
     nEdges = length(nonZeros[1])
@@ -36,7 +36,7 @@ function shubhamFrust(state::Array{Int,1},
 end
 
 function stateConvert(state)
-    state = 2*state
+    state = Int.(2*state)
     state = join(["'", join(replace(x -> x < 0 ? x+2 : x+1, state)), "'"])
     return state
 end
@@ -52,18 +52,21 @@ function shubhamBoolean(update_matrix::Array{Int,2},
     # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
     update_matrix = float(update_matrix)
     for i in 1:n_nodes
-        n = length([(i,j) for j=1:n_nodes if u[i,j] == 0])        
+        n = length([(i,j) for j=1:n_nodes if update_matrix[j,i] == 0])        
         n = n_nodes - n
-        update_matrix[i, :] = update_matrix[i,:]/n
+        if n == 0
+            n = 1
+        end
+        update_matrix[:, i] = update_matrix[:, i]/n
     end
     # update_matrix2 = 2*update_matrix + Matrix(I, n_nodes, n_nodes)
     # nzId = enumerate(findall(update_matrix.!=0))
     # minVal = minimum([abs(update_matrix[j]) for (i,j) in nzId])
     # update_matrix2 = update_matrix + Matrix(I, n_nodes, n_nodes)*(minVal/2)
-    update_matrix2 = sparse(update_matrix2')
+    update_matrix2 = sparse(update_matrix')
     for i in 1:nInit
         state = rand(stateVec, n_nodes) #pick random state
-        init = join(["'", join(replace(x -> x == -1 ? 0 : x, state)), "'"])
+        init = stateConvert(state)
         flag = 0
         for j in 1:nIter
             s1 = stateChar(update_matrix2*state)
@@ -77,7 +80,7 @@ function shubhamBoolean(update_matrix::Array{Int,2},
             state[u] = s1[u]
         end
         fr = shubhamFrust(state, findnz(sparse(update_matrix)))
-        fin = join(["'", join(replace(x -> x == -1 ? 0 : x, state)), "'"])
+        fin = stateConvert(state)
         push!(frustVec, fr)
         push!(initVec, init)
         push!(finVec, fin)
