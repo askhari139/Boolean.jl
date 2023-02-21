@@ -1,8 +1,8 @@
-function stateChar(state::AbstractArray)
+function stateChar(state::AbstractArray, s0)
     for i in 1:length(state)
         x = state[i]
         if x == 0
-            y = copy(x)
+            y = s0[i]
         elseif x < -0.5
             y = -1.0
         elseif x < 0
@@ -42,7 +42,7 @@ function stateConvert(state)
 end
 
 function shubhamBoolean(update_matrix::Array{Int,2},
-    nInit::Int, nIter::Int)
+    nInit::Int, nIter::Int, discrete::Bool)
     n_nodes = size(update_matrix,1)
     stateVec = [-1, -0.5, 0.5, 1]
     initVec = []
@@ -69,7 +69,11 @@ function shubhamBoolean(update_matrix::Array{Int,2},
         init = stateConvert(state)
         flag = 0
         for j in 1:nIter
-            s1 = stateChar(update_matrix2*state)
+            st = copy(state)
+            if discrete
+                st = sign.(st)
+            end
+            s1 = stateChar(update_matrix2*st, state)
             u = rand(1:n_nodes, 1)
             if iszero(j%2) # check after every two steps,hopefully reduce the time
                 if s1 == state
