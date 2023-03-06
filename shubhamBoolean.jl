@@ -49,6 +49,7 @@ function shubhamBoolean(update_matrix::Array{Int,2},
     finVec = []
     flagVec = []
     frustVec = []
+    timeVec = []
     # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
     update_matrix = float(update_matrix)
     for i in 1:n_nodes
@@ -68,7 +69,9 @@ function shubhamBoolean(update_matrix::Array{Int,2},
         state = rand(stateVec, n_nodes) #pick random state
         init = stateConvert(state)
         flag = 0
+        time = 0
         for j in 1:nIter
+            time = time + 1
             st = copy(state)
             if discrete
                 st = sign.(st)
@@ -88,12 +91,18 @@ function shubhamBoolean(update_matrix::Array{Int,2},
         push!(frustVec, fr)
         push!(initVec, init)
         push!(finVec, fin)
-        push!(flagVec, flag)       
+        push!(flagVec, flag)
+        push!(timeVec, time)     
         # push!(states_df, (init, fin, flag))
     end
     states_df = DataFrame(init=initVec, 
             fin = finVec, flag = flagVec)
     frust_df = DataFrame(fin = finVec, 
         frust = frustVec)
-    return states_df, unique(frust_df, :fin)
+    frust_df = unique(frust_df, :fin)
+    timeData = DataFrame(fin = finVec, time = timeVec)
+    timeData = groupby(timeData, :fin)
+    timeData = combine(timeData, :time => avg, renamecols = false)
+    frust_df = innerjoin(frust_df, timeData, on = :fin)
+    return states_df, frust_df
 end

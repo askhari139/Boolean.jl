@@ -82,10 +82,10 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     types::Array{Int, 1} = [0],init::Bool=false, randSim::Bool=false, root::String="", 
     randVec::Array{Float64,1}=[0.0], shubham = false, discrete = true)
     update_matrix,Nodes = topo2interaction(topoFile)
-    if length(Nodes)>60
-        print("Network is too big")
-        return 0
-    end
+    # if length(Nodes)>60
+    #     print("Network is too big")
+    #     return 0
+    # end
     finFlagFreqFinal_df_list_list = []
     initFinFlagFreqFinal_df_list_list = []
     frust_df_list = []
@@ -132,10 +132,11 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
         end
 
         frust_df = reduce(vcat, frust_df_list)
-        for i in frust_df_list
-            frust_df = vcat(frust_df, i)
-        end
-        frust_df = unique(frust_df, :fin)
+        # for i in frust_df_list
+        #     frust_df = vcat(frust_df, i)
+        # end
+        frust_df = unique(frust_df, [:fin, :time])
+        frust_df = dfAvgGen(frust_df, [:fin, :frust], [:time])
 
         finFlagFreqFinal_df = meanSD(finFlagFreqFinal_df, "frequency")
         finFlagFreqFinal_df = outerjoin(finFlagFreqFinal_df, frust_df, 

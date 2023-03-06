@@ -103,6 +103,22 @@ function getFreq(x)
     y = x/sum(x)
     return y
 end
+
+function avg(x)
+    m = sum(x)/length(x)
+    return m
+end
+
+## calculate standard deviation
+function SD(x)
+    m = avg(x)
+    x = [i for i in x]
+    # print(x)
+    v = sum((x.-m).^2)/length(x)
+    s = sqrt(v)
+    return s
+end
+
 ## get frequency for select columns in a dataframe
 function dfFreq(state_df::DataFrame, cols::Array{Symbol, 1})
     df = @pipe state_df |>
@@ -123,21 +139,17 @@ function dfFreqGen(state_df::DataFrame, cols::Array{Symbol, 1})
     return df
 end
 
-## calculate average
-function avg(x)
-    m = sum(x)/length(x)
-    return m
+function dfAvgGen(state_df::DataFrame, cols::Array{Symbol, 1}, meanCol::Array{Symbol, 1})
+    df = @pipe state_df |>
+        groupby(_, cols) |>
+        combine(_, meanCol .=> avg, renamecols = false) |>
+        # transform(_, :Count => getFreq => :frequency) |>
+        select(_, vcat(cols, meanCol))
+    return df
 end
 
-## calculate standard deviation
-function SD(x)
-    m = avg(x)
-    x = [i for i in x]
-    # print(x)
-    v = sum((x.-m).^2)/length(x)
-    s = sqrt(v)
-    return s
-end
+## calculate average
+
 
 ## apply a function to each row of a dataframe
 function rowWise(df::DataFrame, func::Function)
