@@ -26,10 +26,10 @@ Passive outputs :
 =#
 function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, type::Int=0, randSim::Bool = false,
-    randVec::Array{Float64, 1}=[0.0], shubham = false, discrete = true)
+    randVec::Array{Float64, 1}=[0.0], shubham = false, discrete = true, nLevels = 2)
     update_matrix,Nodes = topo2interaction(topoFile, type)
     if shubham == true
-        state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter, discrete)
+        state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter, discrete, nLevels)
     elseif mode == "Async"
         if stateRep == -1
             if randSim
@@ -80,7 +80,7 @@ Passive outputs :
 function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, reps::Int = 3, csv::Bool=false, 
     types::Array{Int, 1} = [0],init::Bool=false, randSim::Bool=false, root::String="", 
-    randVec::Array{Float64,1}=[0.0], shubham = false, discrete = true)
+    randVec::Array{Float64,1}=[0.0], shubham = false, discrete = true, nLevels = 2)
     update_matrix,Nodes = topo2interaction(topoFile)
     # if length(Nodes)>60
     #     print("Network is too big")
@@ -100,7 +100,7 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
         for rep in 1:reps
             states_df, Nodes, frust_df = bmodel(topoFile, nInit = nInit, 
                 nIter = nIter, mode = mode, stateRep = stateRep, type = type, 
-                randSim = randSim, randVec = randVec, shubham = shubham, discrete = discrete)
+                randSim = randSim, randVec = randVec, shubham = shubham, discrete = discrete, nLevels = nLevels)
             # state_df = dropmissing(state_df, disallowmissing = true)
             push!(frust_df_list, frust_df)
             # Frequnecy table 
@@ -185,7 +185,7 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
         rootName = join([rootName, "_",root])
     end
     if shubham
-        rootName = join([rootName, "_shubham"])
+        rootName = join([rootName, "_shubham_", nLevels])
     end
     # println(rootName)
     if stateRep == 0

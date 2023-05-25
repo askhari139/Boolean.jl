@@ -1,16 +1,15 @@
-function stateChar(state::AbstractArray, s0)
+function stateChar(state::AbstractArray, s0; nLevels = 2)
     for i in 1:length(state)
         x = state[i]
         if x == 0
             y = s0[i]
-        elseif x < -0.5
-            y = -1.0
-        elseif x < 0
-            y = -0.5
-        elseif x > 0.5
-            y = 1.0
         else
-            y = 0.5
+            ls = collect(1:nLevels)
+            levels = [-1*reverse(ls)/nLevels; 0; ls/nLevels]
+            states = [-1*reverse(ls)/nLevels; ls/nLevels]
+            levels = levels[1:(length(levels) - 1)]
+            compares = sum(x .>= levels)
+            y = states[compares]
         end
         state[i] = y
     end
@@ -38,16 +37,17 @@ function shubhamFrust(state::Array{Float64,1},
     return frustration
 end
 
-function stateConvert(state)
-    state = Int.(2*state)
-    state = join(["'", join(replace(x -> x < 0 ? x+2 : x+1, state)), "'"])
+function stateConvert(state, nLevels = 2)
+    state = Int.(nLevels*state)
+    state = join(["'", join(replace(x -> x < 0 ? x+nLevels : x+nLevels-1, state)), "'"])
     return state
 end
 
 function shubhamBoolean(update_matrix::Array{Int,2},
-    nInit::Int, nIter::Int, discrete::Bool)
+    nInit::Int, nIter::Int, discrete::Bool; nLevels = 2)
     n_nodes = size(update_matrix,1)
-    stateVec = [-1, -0.5, 0.5, 1]
+    ls = collect(1:nLevels)
+    stateVec = [-1*reverse(ls)/nLevels; ls/nLevels]
     initVec = []
     finVec = []
     flagVec = []
@@ -70,7 +70,7 @@ function shubhamBoolean(update_matrix::Array{Int,2},
     update_matrix2 = sparse(update_matrix')
     for i in 1:nInit
         state = rand(stateVec, n_nodes) #pick random state
-        init = stateConvert(state)
+        init = stateConvert(state, nLevels)
         flag = 0
         time = 0
         for j in 1:nIter
@@ -79,7 +79,7 @@ function shubhamBoolean(update_matrix::Array{Int,2},
             if discrete
                 st = sign.(st)
             end
-            s1 = stateChar(update_matrix2*st, state)
+            s1 = stateChar(update_matrix2*st, state, nLevels)
             u = rand(1:n_nodes, 1)
             if iszero(j%2) # check after every two steps,hopefully reduce the time
                 if s1 == state
