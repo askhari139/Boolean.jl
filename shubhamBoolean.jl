@@ -23,12 +23,15 @@ function shubhamFrust(state::Array{Float64,1},
     nEdges = length(nonZeros[1])
     for (x,y,v) in zip(nonZeros...)
         s = state[x]*state[y]*v
-        if s<0
-            if state[x] == state[y]
-                frustration = frustration + 1
-            else
-                frustration = frustration + 0.5
-            end
+        # if s<0
+        #     if state[x] == state[y]
+        #         frustration = frustration + 1
+        #     else
+        #         frustration = frustration + 0.5
+        #     end
+        # end
+        if s < 0
+            frustration = frustration + abs(state[x]*state[y])
         end
     end
     frustration = frustration/nEdges
