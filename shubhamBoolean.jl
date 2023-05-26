@@ -44,7 +44,7 @@ function stateConvert(state, nLevels = 2)
 end
 
 function shubhamBoolean(update_matrix::Array{Int,2},
-    nInit::Int, nIter::Int, discrete::Bool; nLevels = 2)
+    nInit::Int, nIter::Int, discrete::Bool; nLevels::Int = 2)
     n_nodes = size(update_matrix,1)
     ls = collect(1:nLevels)
     stateVec = [-1*reverse(ls)/nLevels; ls/nLevels]
