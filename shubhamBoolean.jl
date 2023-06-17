@@ -37,7 +37,7 @@ function shubhamFrust(state::Array{Float64,1},
     return frustration
 end
 
-function stateConvert(state, nLevels = 2)
+function stateConvert(state; nLevels = 2)
     state = Int.(nLevels*state)
     state = join(["'", join(replace(x -> x < 0 ? x+nLevels : x+nLevels-1, state)), "'"])
     return state
@@ -68,9 +68,9 @@ function shubhamBoolean(update_matrix::Array{Int,2},
     # minVal = minimum([abs(update_matrix[j]) for (i,j) in nzId])
     # update_matrix2 = update_matrix + Matrix(I, n_nodes, n_nodes)*(minVal/2)
     update_matrix2 = sparse(update_matrix')
-    for i in 1:nInit
+    @showprogress for i in 1:nInit
         state = rand(stateVec, n_nodes) #pick random state
-        init = stateConvert(state, nLevels)
+        init = stateConvert(state; nLevels = nLevels)
         flag = 0
         time = 0
         for j in 1:nIter
@@ -79,7 +79,7 @@ function shubhamBoolean(update_matrix::Array{Int,2},
             if discrete
                 st = sign.(st)
             end
-            s1 = stateChar(update_matrix2*st, state, nLevels)
+            s1 = stateChar(update_matrix2*st, state; nLevels= nLevels)
             u = rand(1:n_nodes, 1)
             if iszero(j%2) # check after every two steps,hopefully reduce the time
                 if s1 == state
@@ -90,7 +90,7 @@ function shubhamBoolean(update_matrix::Array{Int,2},
             state[u] = s1[u]
         end
         fr = shubhamFrust(state, findnz(sparse(update_matrix)))
-        fin = stateConvert(state)
+        fin = stateConvert(state; nLevels = nLevels)
         push!(frustVec, fr)
         push!(initVec, init)
         push!(finVec, fin)

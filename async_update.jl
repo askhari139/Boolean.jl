@@ -28,7 +28,7 @@ function asyncUpdate(update_matrix::Array{Int,2},
     # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
     update_matrix2 = 2*update_matrix + Matrix(I, n_nodes, n_nodes)
     update_matrix2 = sparse(update_matrix2')
-    for i in 1:nInit
+    @showprogress for i in 1:nInit
         state = rand(stateVec, n_nodes) #pick random state
         init = join(["'", join(replace(x -> x == -1 ? 0 : x, state)), "'"])
         flag = 0
@@ -80,7 +80,7 @@ function asyncUpdate2(update_matrix::Array{Int,2},
     # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
     update_matrix2 = 2*update_matrix + Matrix(I, n_nodes, n_nodes)
     update_matrix2 = sparse(update_matrix2')
-    for i in 1:nInit
+    @showprogress for i in 1:nInit
         state = rand(stateVec, n_nodes) #pick random state
         init = join(["'", join(state), "'"])
         flag = 0
@@ -153,7 +153,7 @@ function asyncRandUpdate(update_matrix::Array{Int,2},
     minVal = minimum([abs(update_matrix[j]) for (i,j) in nzId])
     update_matrix2 = update_matrix + Matrix(I, n_nodes, n_nodes)*(minVal/2)
     update_matrix2 = sparse(update_matrix2')
-    for i in 1:nInit
+    @showprogress for i in 1:nInit
         state = rand(stateVec, n_nodes) #pick random state
         init = join(["'", join(replace(x -> x == -1 ? 0 : x, state)), "'"])
         flag = 0
