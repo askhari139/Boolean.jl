@@ -1,13 +1,9 @@
-function stateChar(state::AbstractArray, s0; nLevels = 2)
+function stateChar(state::AbstractArray, s0, levels, states)
     for i in 1:length(state)
         x = state[i]
         if x == 0
             y = s0[i]
         else
-            ls = collect(1:nLevels)
-            levels = [-1*reverse(ls)/nLevels; 0; ls/nLevels]
-            states = [-1*reverse(ls)/nLevels; ls/nLevels]
-            levels = levels[1:(length(levels) - 1)]
             compares = sum(x .>= levels)
             if compares == 0
                 compares = 1
@@ -76,13 +72,17 @@ function shubhamBoolean(update_matrix::Array{Int,2},
         init = stateConvert(state; nLevels = nLevels)
         flag = 0
         time = 0
+        ls = collect(1:nLevels)
+        levels = [-1*reverse(ls)/nLevels; 0; ls/nLevels]
+        states = [-1*reverse(ls)/nLevels; ls/nLevels]
+        levels = levels[1:(length(levels) - 1)]
         for j in 1:nIter
             time = time + 1
             st = copy(state)
             if discrete
                 st = sign.(st)
             end
-            s1 = stateChar(update_matrix2*st, state; nLevels= nLevels)
+            s1 = stateChar(update_matrix2*st, state, levels, states)
             u = rand(1:n_nodes, 1)
             if iszero(j%2) # check after every two steps,hopefully reduce the time
                 if s1 == state
