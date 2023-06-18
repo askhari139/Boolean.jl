@@ -9,6 +9,9 @@ function stateChar(state::AbstractArray, s0; nLevels = 2)
             states = [-1*reverse(ls)/nLevels; ls/nLevels]
             levels = levels[1:(length(levels) - 1)]
             compares = sum(x .>= levels)
+            if compares == 0
+                compares = 1
+            end
             y = states[compares]
         end
         state[i] = y
