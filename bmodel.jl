@@ -26,10 +26,11 @@ Passive outputs :
 =#
 function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, type::Int=0, randSim::Bool = false,
-    randVec::Array{Float64, 1}=[0.0], shubham = false, discrete = true, nLevels = 2)
+    randVec::Array{Float64, 1}=[0.0], shubham = false, discrete = true, nLevels = 2,
+    vaibhav::Bool = false)
     update_matrix,Nodes = topo2interaction(topoFile, type)
     if shubham == true
-        state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter, discrete; nLevels = nLevels)
+        state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter, discrete; nLevels = nLevels, vaibhav = vaibhav)
     elseif mode == "Async"
         if stateRep == -1
             if randSim
@@ -80,7 +81,8 @@ Passive outputs :
 function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, reps::Int = 3, csv::Bool=false, 
     types::Array{Int, 1} = [0],init::Bool=false, randSim::Bool=false, root::String="", 
-    randVec::Array{Float64,1}=[0.0], shubham = false, discrete = true, nLevels = 2)
+    randVec::Array{Float64,1}=[0.0], shubham = false, discrete = true, nLevels = 2,
+    vaibhav::Bool = false)
     update_matrix,Nodes = topo2interaction(topoFile)
     # if length(Nodes)>60
     #     print("Network is too big")
@@ -100,7 +102,8 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
         for rep in 1:reps
             states_df, Nodes, frust_df = bmodel(topoFile, nInit = nInit, 
                 nIter = nIter, mode = mode, stateRep = stateRep, type = type, 
-                randSim = randSim, randVec = randVec, shubham = shubham, discrete = discrete, nLevels = nLevels)
+                randSim = randSim, randVec = randVec, shubham = shubham, 
+                discrete = discrete, nLevels = nLevels, vaibhav = vaibhav)
             # state_df = dropmissing(state_df, disallowmissing = true)
             push!(frust_df_list, frust_df)
             # Frequnecy table 
@@ -186,10 +189,13 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     end
     if shubham
         rootName = join([rootName, "_shubham_", nLevels])
+        if vaibhav
+            rootName = join([rootName, "_vaibhav"])
+        end
     end
     # println(rootName)
     if stateRep == 0
-        rootName = join([rootName, "0"])
+        rootName = join([rootName, "_nIsing"])
     end
     finFlagFreqName = join([rootName, "_finFlagFreq.csv"])
 
