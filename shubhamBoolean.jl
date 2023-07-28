@@ -6,6 +6,7 @@ function stateChar(state::AbstractArray, s0, levels, states, vaibhav)
                 y = 0
             else
                 y = s0[i]
+            end
         else
             compares = sum(x .>= levels)
             if compares == 0
