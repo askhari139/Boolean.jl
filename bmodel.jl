@@ -2,7 +2,7 @@ include("dependencies.jl")
 include("utils.jl")
 include("async_update.jl")
 include("shubhamBoolean.jl")
-# include("csb.jl")
+include("csb.jl")
 
 #=
 Author : Kishore Hari
@@ -34,7 +34,7 @@ function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     if shubham == true
         state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter, discrete; nLevels = nLevels, vaibhav = vaibhav)
     elseif csb == true
-        state_df, frust_df = csb(update_matrix, nInit, nIter; timeStep = timeStep, discreteState = discreteState)
+        state_df, frust_df = csbUpdate(update_matrix, nInit, nIter; timeStep = timeStep, discreteState = discreteState)
     elseif mode == "Async"
         if stateRep == -1
             if randSim
