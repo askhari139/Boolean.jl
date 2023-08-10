@@ -199,6 +199,9 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
             rootName = join([rootName, "_vaibhav"])
         end
     end
+    if csb
+        rootName = join([rootName, "_csb_", timeStep])
+    end
     # println(rootName)
     if stateRep == 0
         rootName = join([rootName, "_nIsing"])
