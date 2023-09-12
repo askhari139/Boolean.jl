@@ -3,6 +3,7 @@ include("utils.jl")
 include("async_update.jl")
 include("shubhamBoolean.jl")
 include("CSB.jl")
+include("async_non_matrix.jl")
 
 #=
 Author : Kishore Hari
@@ -29,21 +30,29 @@ function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, type::Int=0, randSim::Bool = false,
     randVec::Array{Float64, 1}=[0.0], shubham = false, discrete = true, nLevels = 2,
     vaibhav::Bool = false, csb::Bool = true, timeStep::Float64 = 0.1,
-    discreteState::Bool = true)
+    discreteState::Bool = true, nonMatrix::Bool = true)
     update_matrix,Nodes = topo2interaction(topoFile, type)
     if shubham == true
         state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter, discrete; nLevels = nLevels, vaibhav = vaibhav)
     elseif csb == true
         state_df, frust_df = csbUpdate(update_matrix, nInit, nIter; timeStep = timeStep, discreteState = discreteState)
     elseif mode == "Async"
-        if stateRep == -1
-            if randSim
-                state_df, frust_df = asyncRandUpdate(update_matrix, nInit, nIter, randVec)
-            else 
-                state_df, frust_df = asyncUpdate(update_matrix, nInit, nIter)
+        if nonMatrix
+            if stateRep == -1
+                state_df, frust_df = asyncIsingNoFunc(update_matrix, nInit, nIter)
+            else
+                state_df, frust_df = asyncNIsingNoFunc(update_matrix, nInit, nIter)
             end
         else
-            state_df, frust_df = asyncUpdate2(update_matrix, nInit, nIter)
+            if stateRep == -1
+                if randSim
+                    state_df, frust_df = asyncRandUpdate(update_matrix, nInit, nIter, randVec)
+                else 
+                    state_df, frust_df = asyncUpdate(update_matrix, nInit, nIter)
+                end
+            else
+                state_df, frust_df = asyncUpdate2(update_matrix, nInit, nIter)
+            end
         end
     else
         print("Method under construction.")
@@ -86,8 +95,8 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, reps::Int = 3, csv::Bool=false, 
     types::Array{Int, 1} = [0],init::Bool=false, randSim::Bool=false, root::String="", 
     randVec::Array{Float64,1}=[0.0], shubham = false, discrete = true, nLevels = 2,
-    vaibhav::Bool = false, csb::Bool = true, timeStep::Float64 = 0.1,
-    discreteState::Bool = true)
+    vaibhav::Bool = false, csb::Bool = false, timeStep::Float64 = 0.1,
+    discreteState::Bool = true, nonMatrix::Bool = true)
     update_matrix,Nodes = topo2interaction(topoFile)
     # if length(Nodes)>60
     #     print("Network is too big")
@@ -109,7 +118,8 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
                 nIter = nIter, mode = mode, stateRep = stateRep, type = type, 
                 randSim = randSim, randVec = randVec, shubham = shubham, 
                 discrete = discrete, nLevels = nLevels, vaibhav = vaibhav,
-                csb = csb, timeStep = timeStep, discreteState = discreteState)
+                csb = csb, timeStep = timeStep, discreteState = discreteState,
+                nonMatrix = nonMatrix)
             # state_df = dropmissing(state_df, disallowmissing = true)
             push!(frust_df_list, frust_df)
             # Frequnecy table 
@@ -205,6 +215,9 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     # println(rootName)
     if stateRep == 0
         rootName = join([rootName, "_nIsing"])
+    end
+    if nonMatrix
+        rootName = join([rootName, "_nonMatrix"])
     end
     finFlagFreqName = join([rootName, "_finFlagFreq.csv"])
 
