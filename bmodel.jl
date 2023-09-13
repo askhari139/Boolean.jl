@@ -29,7 +29,7 @@ Passive outputs :
 function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, type::Int=0, randSim::Bool = false,
     randVec::Array{Float64, 1}=[0.0], shubham = false, discrete = true, nLevels = 2,
-    vaibhav::Bool = false, csb::Bool = true, timeStep::Float64 = 0.1,
+    vaibhav::Bool = false, csb::Bool = false, timeStep::Float64 = 0.1,
     discreteState::Bool = true, nonMatrix::Bool = true)
     update_matrix,Nodes = topo2interaction(topoFile, type)
     if shubham == true
@@ -175,7 +175,7 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
                 Dict(:Avg => Symbol(join(["Avg", type])), 
                 :SD => Symbol(join(["SD", type])),
                 :frust => Symbol(join(["frust", type]))))
-            push!(initFinFlagFreqFinal_df_list_list, initFinFlagFreq_df)
+            push!(initFinFlagFreqFinal_df_list_list, initFinFlagFreqFinal_df)
 
         end
     end

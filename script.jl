@@ -19,3 +19,4 @@ end
 #	y3 = @elapsed x = edgeWeightPert(topoFile; nPerts = 100, nInit = 10000, types = [0])
 #	println(topoFile, " - ", y3, " seconds.")
 #end
+

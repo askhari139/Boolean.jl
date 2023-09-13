@@ -4,7 +4,7 @@ function updateFuncs(update_matrix2::Array{Int,2})
     N = size(update_matrix2)[1]
     update_functions = Array{Function}(undef, N)
     for i in 1:N
-        update_functions[i] = (x) -> sign(sum(update_matrix2[:,i]'.*x))
+        update_functions[i] = (x) -> sign(sum(update_matrix2[:,i].*x))
     end
     return update_functions
 end
@@ -28,6 +28,20 @@ function checkSSnising(update_functions, state)
     end
     return true
 end
+
+function checkSSnisingTest(update_functions, state)
+    N = length(state)
+    x = [Int(i>0) for i in state]
+    for i in 1:N
+        if state[i] != Int(update_functions[i](state)>0)
+            x[i] = 0
+        else
+            x[i] = 1
+        end
+    end
+    return x
+end
+
 
 function asyncIsingNoFunc(update_matrix::Array{Int,2},
     nInit::Int, nIter::Int)
