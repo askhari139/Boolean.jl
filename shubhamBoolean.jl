@@ -1,19 +1,24 @@
+function numChar(x, s0, levels, states, vaibhav)
+    if x == 0
+        if vaibhav
+            y = 0
+        else
+            y = s0
+        end
+    else
+        compares = sum(x .>= levels)
+        if compares == 0
+            compares = 1
+        end
+        y = states[compares]
+    end
+end
+
+
 function stateChar(state::AbstractArray, s0, levels, states, vaibhav)
     for i in 1:length(state)
         x = state[i]
-        if x == 0
-            if vaibhav
-                y = 0
-            else
-                y = s0[i]
-            end
-        else
-            compares = sum(x .>= levels)
-            if compares == 0
-                compares = 1
-            end
-            y = states[compares]
-        end
+        y = numChar(x, s0[i], levels, states, vaibhav)
         state[i] = y
     end
     return state
@@ -42,7 +47,11 @@ end
 
 function stateConvert(state; nLevels = 2)
     state = Int.(nLevels*state)
-    state = join(["'", join(replace(x -> x < 0 ? x+nLevels : x+nLevels-1, state)), "'"])
+    # if nLevels > 5, add "_" between the states
+    # if nLevels > 5
+    state = join(["'", join(replace(x -> x < 0 ? x+nLevels : x+nLevels-1, state), "_"), "'"])
+    # end
+    # state = join(["'", join(replace(x -> x < 0 ? x+nLevels : x+nLevels-1, state)), "'"])
     return state
 end
 
