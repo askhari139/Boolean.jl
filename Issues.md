@@ -1,0 +1,3 @@
+- Multilevel is a little slower than normal ising...
+- Multiple functions for frustration. Are they slow?
+- Three types - majority, inhibition dominant and activation dominant

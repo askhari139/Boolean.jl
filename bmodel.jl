@@ -1,7 +1,8 @@
 include("dependencies.jl")
 include("utils.jl")
 include("async_update.jl")
-include("shubhamBoolean.jl")
+# include("shubhamBoolean.jl")
+include("multiLevel_shubham.jl")
 include("CSB.jl")
 include("async_non_matrix.jl")
 
@@ -30,10 +31,11 @@ function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, type::Int=0, randSim::Bool = false,
     randVec::Array{Float64, 1}=[0.0], shubham = false, discrete = true, nLevels = 2,
     vaibhav::Bool = false, csb::Bool = false, timeStep::Float64 = 0.1,
-    discreteState::Bool = true, nonMatrix::Bool = true)
+    discreteState::Bool = true, nonMatrix::Bool = true,
+    turnOffNodes::Array{Int,1} = Int[])
     update_matrix,Nodes = topo2interaction(topoFile, type)
     if shubham == true
-        state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter, discrete; nLevels = nLevels, vaibhav = vaibhav)
+        state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter, discrete; nLevels = nLevels, vaibhav = vaibhav, turnOffNodes = turnOffNodes)
     elseif csb == true
         state_df, frust_df = csbUpdate(update_matrix, nInit, nIter; timeStep = timeStep, discreteState = discreteState)
     elseif mode == "Async"
@@ -92,16 +94,14 @@ Passive outputs :
 =#
 
 function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
-    mode::String="Async", stateRep::Int64=-1, reps::Int = 3, csv::Bool=false, 
+    mode::String="Async", stateRep::Int64=-1, reps::Int = 3,
     types::Array{Int, 1} = [0],init::Bool=false, randSim::Bool=false, root::String="", 
     randVec::Array{Float64,1}=[0.0], shubham = false, discrete = false, nLevels = 2,
     vaibhav::Bool = false, csb::Bool = false, timeStep::Float64 = 0.1,
-    discreteState::Bool = false, nonMatrix::Bool = false)
+    discreteState::Bool = false, nonMatrix::Bool = false,
+    turnOffNodes::Array{Int,1} = Int[], write::Bool = true, getData::Bool = false)
     update_matrix,Nodes = topo2interaction(topoFile)
-    # if length(Nodes)>60
-    #     print("Network is too big")
-    #     return 0
-    # end
+    nNodes = length(Nodes)
     finFlagFreqFinal_df_list_list = []
     initFinFlagFreqFinal_df_list_list = []
     frust_df_list = []
@@ -119,7 +119,7 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
                 randSim = randSim, randVec = randVec, shubham = shubham, 
                 discrete = discrete, nLevels = nLevels, vaibhav = vaibhav,
                 csb = csb, timeStep = timeStep, discreteState = discreteState,
-                nonMatrix = nonMatrix)
+                nonMatrix = nonMatrix, turnOffNodes = turnOffNodes)
             # state_df = dropmissing(state_df, disallowmissing = true)
             push!(frust_df_list, frust_df)
             # Frequnecy table 
@@ -197,41 +197,9 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
             end
         end
     end
-    
 
-    rootName = replace(topoFile, ".topo" => "")
-    if root !=""
-        rootName = join([rootName, "_",root])
-    end
-    if shubham
-        rootName = join([rootName, "_shubham_", nLevels])
-        if vaibhav
-            rootName = join([rootName, "_vaibhav"])
-        end
-    end
-    if csb
-        rootName = join([rootName, "_csb_", timeStep])
-    end
-    # println(rootName)
-    if stateRep == 0
-        rootName = join([rootName, "_nIsing"])
-    end
-    if nonMatrix
-        rootName = join([rootName, "_nonMatrix"])
-    end
-    finFlagFreqName = join([rootName, "_finFlagFreq.csv"])
-
-    CSV.write(finFlagFreqName, finFlagFreqFinal_df)
-
-
-    if init
-        initFinFlagFreqName = join([rootName, "_initFinFlagFreq.csv"])
-        CSV.write(initFinFlagFreqName, initFinFlagFreqFinal_df)
-    end
-
-    # write csv files
     if !randSim
-        nodesName = join([replace(topoFile, ".topo" => ""), "_nodes.txt"])
+        nodesName = replace(topoFile, ".topo" => "_nodes.txt")
         update_matrix,Nodes = topo2interaction(topoFile)
         io = open(nodesName, "w")
         for i in Nodes
@@ -239,56 +207,66 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
         end
         close(io);
     end
-    # return the dataframes
-    if init
-        return(finFlagFreqFinal_df, 
-            initFinFlagFreqFinal_df)
-    else
-        return(finFlagFreqFinal_df)
-    end
-end
 
-function edgeWeightPert(topoFile::String; nPerts::Int=10000, nInit::Int64=10000, nIter::Int64=1000,
-    mode::String="Async", stateRep::Int64=-1, reps::Int = 3, csv::Bool=false, 
-    types::Array{Int, 1} = [0,1,2],init::Bool=false, randSim::Bool=true)
-    updMat, nodes = topo2interaction(topoFile)
-    nZ = length(findall(updMat.!=0))
-    nRand = nZ*nPerts
-    rands = reshape(rand(nRand), nPerts, nZ)
-    randFold = replace(topoFile, ".topo" => "_rand")
-    d1 = pwd()
-    mkpath(randFold)
-    cpPath = join([randFold, "/", topoFile])
-    cp(topoFile, cpPath, force = true)
-    cd(randFold)
-    Threads.@threads for i in 1:nPerts
-        # println(string(i))
-        bmodel_reps(topoFile; nInit = nInit, nIter = nIter, mode = mode, stateRep = stateRep, randSim=true, root = string(i), 
-        randVec = rands[i,:], types = types)
-    end
-    nodesName = join([replace(topoFile, ".topo" => ""), "_nodes.txt"])
-        update_matrix,Nodes = topo2interaction(topoFile)
-        io = open(nodesName, "w")
-        for i in Nodes
-            println(io, i)
+    if vaibhav
+        if (length(turnOffNodes) == 0)
+            turnOffLabel = "All"
+        else
+            turnOffLabel = join(Nodes[turnOffNodes], "_")
         end
-    close(io);
-    cd(d1)
-
-end
-
-
-
-function stg(topoFile::String, mode::String="Async")
-    print(topoFile)
-    update_matrix,Nodes = topo2interaction(topoFile)
-    if mode == "Async"
-        stg = async_stg(update_matrix)
-    else
-        stg = sync_stg(update_matrix)
+        finFlagFreqFinal_df[!, "turnOffNode"] .= turnOffLabel
+        if init
+            initFinFlagFreqFinal_df[!, "turnOffNode"] .= turnOffLabel
+        end
     end
-    CSV.write(join([replace(topoFile, ".topo" => ""), "_stg.csv"]), stg)
-    return stg,Nodes
+
+    if write
+        rootName = replace(topoFile, ".topo" => "")
+        if root !=""
+            rootName = join([rootName, "_",root])
+        end
+        if shubham
+            rootName = join([rootName, "_shubham_", nLevels])
+            if vaibhav
+                rootName = join([rootName, "_turnOff"])
+                nTurnOff = length(turnOffNodes)
+                if (nTurnOff == nNodes || nTurnOff == 0)
+                    rootName = join([rootName, "_All"])
+                else
+                    tList = join(turnOffNodes, "_")
+                    rootName = join([rootName, "_", tList])
+                end
+            end
+        end
+        if csb
+            rootName = join([rootName, "_csb_", timeStep])
+        end
+        # println(rootName)
+        if stateRep == 0
+            rootName = join([rootName, "_nIsing"])
+        end
+        if nonMatrix
+            rootName = join([rootName, "_nonMatrix"])
+        end
+        finFlagFreqName = join([rootName, "_finFlagFreq.csv"])
+
+        CSV.write(finFlagFreqName, finFlagFreqFinal_df)
+
+
+        if init
+            initFinFlagFreqName = join([rootName, "_initFinFlagFreq.csv"])
+            CSV.write(initFinFlagFreqName, initFinFlagFreqFinal_df)
+        end
+    end
+
+    if getData
+        if init
+            return(finFlagFreqFinal_df, 
+                initFinFlagFreqFinal_df)
+        else
+            return(finFlagFreqFinal_df)
+        end
+    end
 end
 
 
