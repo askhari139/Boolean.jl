@@ -46,7 +46,7 @@ end
 ### single Node turnOff 
 function singleNodeTurnOff(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, reps::Int = 3, init::Bool=false, 
-    root::String="", nLevels = 2)
+    root::String="", nLevels = 2, progressMeter = false)
     update_matrix,Nodes = topo2interaction(topoFile)
     n_nodes = size(update_matrix,1)
 

@@ -5,6 +5,7 @@ include("async_update.jl")
 include("multiLevel_shubham.jl")
 include("CSB.jl")
 include("async_non_matrix.jl")
+include("customFunctions.jl")
 
 #=
 Author : Kishore Hari
