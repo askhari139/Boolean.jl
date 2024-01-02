@@ -46,14 +46,14 @@ end
 ### single Node turnOff 
 function singleNodeTurnOff(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, reps::Int = 3, init::Bool=false, 
-    root::String="", nLevels = 2, progressMeter = false)
+    root::String="", nLevels = 2, progressMeter::Bool = false)
     update_matrix,Nodes = topo2interaction(topoFile)
     n_nodes = size(update_matrix,1)
 
     ### Normal simulation
     dfs = bmodel_reps(topoFile; nInit = nInit, nIter = nIter, 
             mode = mode, stateRep = stateRep, reps = reps, init = init, nLevels = nLevels,
-            root = root, shubham = true, vaibhav = false, write = false)
+            root = root, shubham = true, vaibhav = false, write = false, getData = true)
     if init
         init, finFlag = dfs
         # add a turnOffNode column to init and finFlag with the value "None"
@@ -72,7 +72,8 @@ function singleNodeTurnOff(topoFile::String; nInit::Int64=10000, nIter::Int64=10
         end
         dfs = bmodel_reps(topoFile; nInit = nInit, nIter = nIter, 
             mode = mode, stateRep = stateRep, reps = reps, init = init, nLevels = nLevels,
-            root = root, shubham = true, vaibhav = false, turnOffNodes = turnOffNodes, write = false)
+            root = root, shubham = true, vaibhav = true, 
+            turnOffNodes = turnOffNodes, write = false, getData = true)
         if init
             finFlag, init = dfs
             push!(initList, init)
@@ -80,13 +81,13 @@ function singleNodeTurnOff(topoFile::String; nInit::Int64=10000, nIter::Int64=10
             finFlag = dfs
         end
         push!(finFlagList, finFlag)
+    end
         if init
             initDf = vcat(initList...)
         end
         finFlagDf = vcat(finFlagList...)
         if init
-            CSV.write(replace(topoFile, ".topo" => "_singleNodeTurnOff_init.csv"), initDf)
+            CSV.write(replace(topoFile, ".topo" => "_singleNodeTurnOff_initFinFlagFreq.csv"), initDf)
         end
-        CSV.write(replace(topoFile, ".topo" => "_singleNodeTurnOff_finFlag.csv"), finFlagDf)
-    end
+        CSV.write(replace(topoFile, ".topo" => "_singleNodeTurnOff_finFlagFreq.csv"), finFlagDf)
 end
