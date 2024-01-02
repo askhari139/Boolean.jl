@@ -61,6 +61,8 @@ function shubhamBoolean(update_matrix::Array{Int,2},
         else
             vaibhav = [i in turnOffNodes for i in 1:n_nodes]
         end
+    else
+        vaibhav = [false for i in 1:n_nodes]
     end
     # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
     update_matrix = float(update_matrix)
