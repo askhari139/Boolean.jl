@@ -64,7 +64,7 @@ function singleNodeTurnOff(topoFile::String; nInit::Int64=10000, nIter::Int64=10
     end
     finFlag[!, "turnOffNode"] .= "None"
     finFlagList = [finFlag]
-    for i in 1:(n_nodes+1)
+    Threads.@threads for i in 1:(n_nodes+1)
         if (i == n_nodes + 1)
             turnOffNodes = Int[]
         else
