@@ -149,6 +149,7 @@ function asyncRandUpdate(update_matrix::Array{Int,2},
     finVec = []
     flagVec = []
     frustVec = []
+    timeVec = []
     # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
     minVal = minimum([abs(update_matrix[j]) for (i,j) in nzId])
     update_matrix2 = update_matrix + Matrix(I, n_nodes, n_nodes)*(minVal/2)
@@ -158,6 +159,7 @@ function asyncRandUpdate(update_matrix::Array{Int,2},
         init = join(["'", join(replace(x -> x == -1 ? 0 : x, state)), "'"])
         flag = 0
         for j in 1:nIter
+            time = time + 1
             s1 = sign.(update_matrix2*state)
             u = rand(1:n_nodes, 1)
             if iszero(j%2) # check after every two steps,hopefully reduce the time
@@ -174,13 +176,19 @@ function asyncRandUpdate(update_matrix::Array{Int,2},
         push!(initVec, init)
         push!(finVec, fin)
         push!(flagVec, flag)       
+        push!(timeVec, time)
         # push!(states_df, (init, fin, flag))
     end
     states_df = DataFrame(init=initVec, 
             fin = finVec, flag = flagVec)
     frust_df = DataFrame(fin = finVec, 
         frust = frustVec)
-    return states_df, unique(frust_df, :fin)
+    frust_df = unique(frust_df, :fin)
+    timeData = DataFrame(fin = finVec, time = timeVec)
+    timeData = groupby(timeData, :fin)
+    timeData = combine(timeData, :time => avg, renamecols = false)
+    frust_df = innerjoin(frust_df, timeData, on = :fin)
+    return states_df, frust_df
 end
 
 
@@ -197,6 +205,7 @@ function asyncRandUpdate0(update_matrix::Array{Int,2},
     finVec = []
     flagVec = []
     frustVec = []
+    timeVec = []
     minVal = minimum([abs(update_matrix[j]) for (i,j) in nzId])
     update_matrix2 = update_matrix + Matrix(I, n_nodes, n_nodes)*(minVal/2)
     update_matrix2 = sparse(update_matrix2')
@@ -205,6 +214,7 @@ function asyncRandUpdate0(update_matrix::Array{Int,2},
         init = join(["'", join(state), "'"])
         flag = 0
         for j in 1:nIter
+            time = time + 1
             s1 = zeroConv(update_matrix2*state)
             u = rand(1:n_nodes, 1)
             if iszero(j%2) # check after every two steps,hopefully reduce the time
@@ -221,13 +231,19 @@ function asyncRandUpdate0(update_matrix::Array{Int,2},
         push!(initVec, init)
         push!(finVec, fin)
         push!(flagVec, flag)       
+        push!(timeVec, time)
         # push!(states_df, (init, fin, flag))
     end
     states_df = DataFrame(init=initVec, 
             fin = finVec, flag = flagVec)
     frust_df = DataFrame(fin = finVec, 
         frust = frustVec)
-    return states_df, unique(frust_df, :fin)
+    frust_df = unique(frust_df, :fin)
+    timeData = DataFrame(fin = finVec, time = timeVec)
+    timeData = groupby(timeData, :fin)
+    timeData = combine(timeData, :time => avg, renamecols = false)
+    frust_df = innerjoin(frust_df, timeData, on = :fin)
+    return states_df, frust_df
 end
 
 function asyncOEDE(update_matrix::Array{Int,2},
@@ -245,6 +261,7 @@ function asyncOEDE(update_matrix::Array{Int,2},
     finVec = []
     flagVec = []
     frustVec = []
+    timeVec = []
     # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
     update_matrix2 = 2*update_matrix + Matrix(I, n_nodes, n_nodes)
     update_matrix2 = sparse(update_matrix2')
@@ -259,6 +276,7 @@ function asyncOEDE(update_matrix::Array{Int,2},
         init = join(["'", join(replace(x -> x == -1 ? 0 : x, state)), "'"])
         flag = 0
         for j in 1:nIter
+            time = time + 1
             s1 = sign.(update_matrix2*state)
             u = rand(1:n_nodes, 1)
             if iszero(j%2) # check after every two steps,hopefully reduce the time
@@ -275,13 +293,19 @@ function asyncOEDE(update_matrix::Array{Int,2},
         push!(initVec, init)
         push!(finVec, fin)
         push!(flagVec, flag)       
+        push!(timeVec, time)
         # push!(states_df, (init, fin, flag))
     end
     states_df = DataFrame(init=initVec, 
             fin = finVec, flag = flagVec)
     frust_df = DataFrame(fin = finVec, 
         frust = frustVec)
-    return states_df, unique(frust_df, :fin)
+    frust_df = unique(frust_df, :fin)
+    timeData = DataFrame(fin = finVec, time = timeVec)
+    timeData = groupby(timeData, :fin)
+    timeData = combine(timeData, :time => avg, renamecols = false)
+    frust_df = innerjoin(frust_df, timeData, on = :fin)
+    return states_df, frust_df
 
 end
 
