@@ -100,13 +100,16 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     randVec::Array{Float64,1}=[0.0], shubham = false, discrete = false, nLevels = 2,
     vaibhav::Bool = false, csb::Bool = false, timeStep::Float64 = 0.1,
     discreteState::Bool = false, nonMatrix::Bool = false,
-    turnOffNodes::Array{Int,1} = Int[], write::Bool = true, getData::Bool = false)
+    turnOffNodes::Union{Int64, Array{Int,1}} = Int[], write::Bool = true, getData::Bool = false)
     update_matrix,Nodes = topo2interaction(topoFile)
     nNodes = length(Nodes)
     finFlagFreqFinal_df_list_list = []
     initFinFlagFreqFinal_df_list_list = []
     frust_df_list = []
 
+    if (typeof(turnOffNodes) == Int64)
+        turnOffNodes = [turnOffNodes]
+    end
 
     for type in types
 
