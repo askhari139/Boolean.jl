@@ -187,4 +187,12 @@ function zeroConv(state::Array{Float64,1})
     replace(x -> x == -1 ? 0 : x, Int.(sign.(state)))
 end
 
-  
+function getNodes(topoFile::String)
+    nodesName = replace(topoFile, ".topo" => "_nodes.txt")
+    update_matrix,Nodes = topo2interaction(topoFile)
+    io = open(nodesName, "w")
+    for i in Nodes
+        println(io, i)
+    end
+    close(io);
+end
