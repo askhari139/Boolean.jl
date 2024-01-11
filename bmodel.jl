@@ -6,6 +6,7 @@ include("multiLevel_shubham.jl")
 include("CSB.jl")
 include("async_non_matrix.jl")
 include("customFunctions.jl")
+include("oddLevel.jl")
 
 #=
 Author : Kishore Hari
@@ -33,12 +34,15 @@ function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     randVec::Array{Float64, 1}=[0.0], shubham = false, discrete = true, nLevels = 2,
     vaibhav::Bool = false, csb::Bool = false, timeStep::Float64 = 0.1,
     discreteState::Bool = true, nonMatrix::Bool = true,
-    turnOffNodes::Array{Int,1} = Int[])
+    turnOffNodes::Array{Int,1} = Int[], oddLevel::Bool = false,
+    negativeOdd::Bool = false)
     update_matrix,Nodes = topo2interaction(topoFile, type)
     if shubham == true
         state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter, discrete; nLevels = nLevels, vaibhav = vaibhav, turnOffNodes = turnOffNodes)
     elseif csb == true
         state_df, frust_df = csbUpdate(update_matrix, nInit, nIter; timeStep = timeStep, discreteState = discreteState)
+    elseif oddLevel == true
+        state_df, frust_df = oddLevels(update_matrix, nInit, nIter, negativeOdd)
     elseif mode == "Async"
         if nonMatrix
             if stateRep == -1
@@ -100,7 +104,9 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     randVec::Array{Float64,1}=[0.0], shubham = false, discrete = false, nLevels = 2,
     vaibhav::Bool = false, csb::Bool = false, timeStep::Float64 = 0.1,
     discreteState::Bool = false, nonMatrix::Bool = false,
-    turnOffNodes::Union{Int64, Array{Int,1}} = Int[], write::Bool = true, getData::Bool = false)
+    turnOffNodes::Union{Int64, Array{Int,1}} = Int[], 
+    oddLevel::Bool = false, negativeOdd::Bool = false,
+    write::Bool = true, getData::Bool = false)
     update_matrix,Nodes = topo2interaction(topoFile)
     nNodes = length(Nodes)
     finFlagFreqFinal_df_list_list = []
@@ -123,7 +129,8 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
                 randSim = randSim, randVec = randVec, shubham = shubham, 
                 discrete = discrete, nLevels = nLevels, vaibhav = vaibhav,
                 csb = csb, timeStep = timeStep, discreteState = discreteState,
-                nonMatrix = nonMatrix, turnOffNodes = turnOffNodes)
+                nonMatrix = nonMatrix, turnOffNodes = turnOffNodes,
+                oddLevel = oddLevel, negativeOdd = negativeOdd)
             # state_df = dropmissing(state_df, disallowmissing = true)
             push!(frust_df_list, frust_df)
             # Frequnecy table 
