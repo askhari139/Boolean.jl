@@ -70,8 +70,9 @@ function frustration(state::Array{Int,1},
     frustration = frustration/nEdges
     return frustration
 end
-function frustration(state::Array{Int,1}, 
-    nonZeros::Tuple{Array{Int64,1},Array{Int64,1},Array{Float64,1}})
+function frustration(state::Union{Array{Int,1}, Array{Float64,1}}, 
+    nonZeros::Union{Tuple{Array{Int64,1},Array{Int64,1},Array{Float64,1}},
+    Tuple{Array{Int64,1},Array{Int64,1},Array{Int64,1}}})
     frustration = 0
     nEdges = length(nonZeros[1])
     for (x,y,v) in zip(nonZeros...)
