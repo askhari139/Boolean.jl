@@ -35,6 +35,15 @@ function oddLevels(update_matrix::Array{Int,2},
     frustVec = []
     timeVec = []
     # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
+    update_matrix = float(update_matrix)
+    updOriginal = copy(update_matrix)
+    for i in 1:n_nodes
+        n = sum(abs.(update_matrix[:,i]))
+        if n == 0
+            n = 1
+        end
+        update_matrix[:, i] = update_matrix[:, i]/n
+    end
     update_matrix2 = sparse(float(update_matrix)')
     @showprogress for i in 1:nInit
         state = rand(stateVec, n_nodes) #pick random state
