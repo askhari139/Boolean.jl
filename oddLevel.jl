@@ -67,7 +67,7 @@ function oddLevels(update_matrix::Array{Int,2},
             end
             state[u] = s1[u]
         end
-        fr = frustration(state, findnz(sparse(update_matrix)))
+        fr = frustration(state, findnz(sparse(updOriginal)))
         fin = join(["'", join(Int.(replace(x -> x == -1 ? 0 : abs(2*x), state)), "_"), "'"])
         push!(frustVec, fr)
         push!(initVec, init)
