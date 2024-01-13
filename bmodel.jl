@@ -249,6 +249,14 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
                 end
             end
         end
+        if oddLevel
+            rootName = join([rootName, "_oddLevel"])
+            if negativeOdd
+                rootName = join([rootName, "_negative"])
+            else
+                rootName = join([rootName, "_positive"])
+            end
+        end
         if csb
             rootName = join([rootName, "_csb_", timeStep])
         end
