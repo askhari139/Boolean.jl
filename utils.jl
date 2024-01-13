@@ -78,7 +78,7 @@ function frustration(state::Union{Array{Int,1}, Array{Float64,1}},
     for (x,y,v) in zip(nonZeros...)
         s = state[x]*state[y]*v
         if s<0
-            frustration = frustration + 1
+            frustration = frustration + s
         end
     end
     frustration = frustration/nEdges
