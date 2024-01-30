@@ -4,7 +4,8 @@ function edgeWeightPert(topoFile::String; nPerts::Int=10000, nInit::Int64=10000,
     nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, reps::Int = 3, csv::Bool=false, 
     types::Array{Int, 1} = [0],init::Bool=false,
-    minWeight::Float64=0.0, maxWeight::Float64=1.0)
+    minWeight::Float64=0.0, maxWeight::Float64=1.0,
+    newFolder::Bool = true)
     updMat, nodes = topo2interaction(topoFile)
     nZ = length(findall(updMat.!=0))
     nRand = nZ*nPerts
@@ -17,12 +18,20 @@ function edgeWeightPert(topoFile::String; nPerts::Int=10000, nInit::Int64=10000,
     cpPath = join([randFold, "/", topoFile])
     cp(topoFile, cpPath, force = true)
     cd(randFold)
+    if newFolder
+        mkpath(join([minWeight, maxWeight], "_"))
+        cpPath = join([minWeight, "_", maxWeight, "/", topoFile])
+        cp(topoFile, cpPath, force = true)
+        cd(join([minWeight, "_", maxWeight]))
+    end
+    p = Progress(nPerts)
     Threads.@threads for i in 1:nPerts
         # println(string(i))
         bmodel_reps(topoFile; nInit = nInit, nIter = nIter, mode = mode, stateRep = stateRep, 
         randSim=true, root = string(i), 
         randVec = rands[i,:], types = types)
     end
+    finish!(p)
     nodesName = join([replace(topoFile, ".topo" => ""), "_nodes.txt"])
         update_matrix,Nodes = topo2interaction(topoFile)
         io = open(nodesName, "w")

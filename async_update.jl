@@ -154,10 +154,11 @@ function asyncRandUpdate(update_matrix::Array{Int,2},
     minVal = minimum([abs(update_matrix[j]) for (i,j) in nzId])
     update_matrix2 = update_matrix + Matrix(I, n_nodes, n_nodes)*(minVal/2)
     update_matrix2 = sparse(update_matrix2')
-    @showprogress for i in 1:nInit
+    for i in 1:nInit
         state = rand(stateVec, n_nodes) #pick random state
         init = join(["'", join(replace(x -> x == -1 ? 0 : x, state)), "'"])
         flag = 0
+        time = 0
         for j in 1:nIter
             time = time + 1
             s1 = sign.(update_matrix2*state)

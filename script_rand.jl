@@ -1,4 +1,4 @@
-include("/path/to/Bmodel/bmodel.jl")
+# include("/path/to/Bmodel/bmodel.jl")
 using Base.Threads
 
 minWt = 0.1
