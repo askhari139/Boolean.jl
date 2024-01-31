@@ -1,7 +1,7 @@
 # include("/path/to/Bmodel/bmodel.jl")
 using Base.Threads
 
-minWt = 0.1
+minWt = 0.0
 maxWt = 1.0
 nPert = 10 # Number of samples of edge weights
 

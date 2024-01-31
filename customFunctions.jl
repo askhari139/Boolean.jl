@@ -3,7 +3,7 @@
 function edgeWeightPert(topoFile::String; nPerts::Int=10000, nInit::Int64=10000, 
     nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, reps::Int = 3, csv::Bool=false, 
-    types::Array{Int, 1} = [0],init::Bool=false,
+    types::Array{Int, 1} = [0],
     minWeight::Float64=0.0, maxWeight::Float64=1.0,
     newFolder::Bool = true)
     updMat, nodes = topo2interaction(topoFile)
@@ -36,7 +36,7 @@ function edgeWeightPert(topoFile::String; nPerts::Int=10000, nInit::Int64=10000,
         # println(string(i))
         bmodel_reps(topoFile; nInit = nInit, nIter = nIter, mode = mode, stateRep = stateRep, 
         randSim=true, root = string(i), 
-        randVec = rands[i,:], types = types)
+        randVec = rands[i,:], types = types, reps = reps)
     end
     finish!(p)
     nodesName = join([replace(topoFile, ".topo" => ""), "_nodes.txt"])
