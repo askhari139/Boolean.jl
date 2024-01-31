@@ -3,7 +3,7 @@ using Base.Threads
 
 minWt = 0.1
 maxWt = 1.0
-nPert = 100 # Number of samples of edge weights
+nPert = 10 # Number of samples of edge weights
 
 fileList = readdir()
 topoFiles = String[]

@@ -151,9 +151,9 @@ function asyncRandUpdate(update_matrix::Array{Int,2},
     frustVec = []
     timeVec = []
     # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
-    minVal = minimum([abs(update_matrix[j]) for (i,j) in nzId])
-    update_matrix2 = update_matrix + Matrix(I, n_nodes, n_nodes)*(minVal/2)
-    update_matrix2 = sparse(update_matrix2')
+    # minVal = minimum([abs(update_matrix[j]) for (i,j) in nzId])
+    # update_matrix2 = update_matrix + Matrix(I, n_nodes, n_nodes)*(minVal/2)
+    update_matrix2 = sparse(update_matrix')
     for i in 1:nInit
         state = rand(stateVec, n_nodes) #pick random state
         init = join(["'", join(replace(x -> x == -1 ? 0 : x, state)), "'"])
@@ -169,7 +169,9 @@ function asyncRandUpdate(update_matrix::Array{Int,2},
                     break
                 end
             end
-            state[u] = s1[u]
+            if (s1[u] != 0)
+                state[u] = s1[u]
+            end
         end
         fr = frustration(state, findnz(sparse(update_matrix)))
         fin = join(["'", join(replace(x -> x == -1 ? 0 : x, state)), "'"])

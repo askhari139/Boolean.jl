@@ -7,7 +7,9 @@ function edgeWeightPert(topoFile::String; nPerts::Int=10000, nInit::Int64=10000,
     minWeight::Float64=0.0, maxWeight::Float64=1.0,
     newFolder::Bool = true)
     updMat, nodes = topo2interaction(topoFile)
-    nZ = length(findall(updMat.!=0))
+    nzId = enumerate(findall(updMat.!=0))
+    edges = [join([nodes[j[1]], "_", nodes[j[2]]]) for (i,j) in nzId]
+    nZ = length(nzId)
     nRand = nZ*nPerts
     rands = rand(nRand)
     rands = minWeight .+ rands*(maxWeight-minWeight)
@@ -23,6 +25,11 @@ function edgeWeightPert(topoFile::String; nPerts::Int=10000, nInit::Int64=10000,
         cpPath = join([minWeight, "_", maxWeight, "/", topoFile])
         cp(topoFile, cpPath, force = true)
         cd(join([minWeight, "_", maxWeight]))
+        colNames = [Symbol("rand", i) for i in 1:nPerts]
+        append!(colNames, [:edge])
+        df = DataFrame(hcat(rands', edges), colNames)
+        CSV.write(replace(topoFile, ".topo" => "_edgeWeightPert.dat"), df; delim = " ")
+
     end
     p = Progress(nPerts)
     Threads.@threads for i in 1:nPerts
