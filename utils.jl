@@ -24,8 +24,8 @@ function topo2interaction(topoFile::String, type::Int=0)
 end
 
 ## create an exhaustive list of binary states of a given length
-function listStates(nStates::Int)
-    x = collect(Iterators.product([[-1,1] for i = 1:nStates]...))
+function listStates(nStates::Int, stateVec)
+    x = collect(Iterators.product([stateVec for i = 1:nStates]...))
     y = []
     for i in x
         j = collect(i)

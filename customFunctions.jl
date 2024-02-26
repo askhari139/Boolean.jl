@@ -34,8 +34,8 @@ function edgeWeightPert(topoFile::String; nPerts::Int=10000, nInit::Int64=10000,
     p = Progress(nPerts)
     Threads.@threads for i in 1:nPerts
         # println(string(i))
-        bmodel_reps(topoFile; nInit = nInit, nIter = nIter, mode = mode, stateRep = stateRep, 
-        randSim=true, root = string(i), 
+        bmodel_reps(topoFile; nInit = nInit, nIter = nIter, mode = mode,
+        stateRep = stateRep, randSim=true, root = string(i), 
         randVec = rands[i,:], types = types, reps = reps)
     end
     finish!(p)
@@ -50,6 +50,57 @@ function edgeWeightPert(topoFile::String; nPerts::Int=10000, nInit::Int64=10000,
 
 end
 
+
+function getSSListRand(topoFile::String;
+    minWeight::Float64=0.0, maxWeight::Float64=1.0, nPerts::Int=10000)
+    updMat, nodes = topo2interaction(topoFile)
+    nzId = enumerate(findall(updMat.!=0))
+    edges = [join([nodes[j[1]], "_", nodes[j[2]]]) for (i,j) in nzId]
+    nZ = length(nzId)
+    nRand = nZ*nPerts
+    rands = rand(nRand)
+    rands = minWeight .+ rands*(maxWeight-minWeight)
+    rands = reshape(rands, nPerts, nZ)
+    n_nodes = size(updMat,1)
+    nStates = min(2^n_nodes, 100000)
+    stateVec = [-1.0,1.0]
+    if (n_nodes < 20)
+        states = listStates(n_nodes, stateVec)
+    else
+        states = [rand(stateVec, n_nodes) for i in 1:nStates]
+    end
+    # print(states)
+    finVecAll = []
+    @showprogress for i in 1:nPerts
+        randVec = rands[i,:]
+        update_matrix = copy(updMat)
+        nzId = enumerate(findall(update_matrix.!=0))
+        update_matrix = [Float64(i) for i in update_matrix]
+        for (i,j) in nzId
+            update_matrix[j] = update_matrix[j]*randVec[i]
+        end
+        print(update_matrix)
+        return
+        finVec = []
+        for state in states
+            s1 = sign.(update_matrix*state)
+            s1 = [s1[i] == 0 ? state[i] : s1[i] for i in 1:n_nodes]
+            if s1 == state
+                fin = join(Int.(replace(x -> x == -1 ? 0 : 1, state)))
+                push!(finVec, fin)
+            end
+        end
+        finVec = join(sort(finVec), " ")
+        push!(finVecAll, finVec)
+    end
+    ssFile = replace(topoFile, ".topo" => "_ssRand")
+    ssFile = join([ssFile, "_", minWeight, "_", maxWeight, ".dat"])
+    io = open(ssFile, "w")
+    for i in finVecAll
+        println(io, i)
+    end
+    close(io);
+end
 
 ### state transition graph - incomplete
 function stg(topoFile::String, mode::String="Async")

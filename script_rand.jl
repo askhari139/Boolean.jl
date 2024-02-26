@@ -1,9 +1,10 @@
 # include("/path/to/Bmodel/bmodel.jl")
 using Base.Threads
+include("bmodel.jl")
 
-minWt = 0.0
+minWt = 1.0
 maxWt = 1.0
-nPert = 10 # Number of samples of edge weights
+nPert = 10000 # Number of samples of edge weights
 
 fileList = readdir()
 topoFiles = String[]
@@ -15,12 +16,7 @@ end
 
 println(Threads.nthreads())
 
-Threads.@threads for topoFile in topoFiles
- 	y1 = @elapsed x = edgeWeightPert(topoFile; nPerts = nPert, nInit = 100000,
+for topoFile in [topoFiles[2]]
+ 	y1 = @elapsed x = getSSListRand(topoFile; nPerts = nPert,
 			minWeight = minWt, maxWeight = maxWt)
 end
-#for topoFile in topoFiles
-#	y3 = @elapsed x = edgeWeightPert(topoFile; nPerts = 100, nInit = 10000, types = [0])
-#	println(topoFile, " - ", y3, " seconds.")
-#end
-
