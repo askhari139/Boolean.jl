@@ -79,11 +79,11 @@ function getSSListRand(topoFile::String;
         for (i,j) in nzId
             update_matrix[j] = update_matrix[j]*randVec[i]
         end
-        print(update_matrix)
-        return
+        # print(update_matrix)
+        # return
         finVec = []
         for state in states
-            s1 = sign.(update_matrix*state)
+            s1 = float(sign.(update_matrix*state))
             s1 = [s1[i] == 0 ? state[i] : s1[i] for i in 1:n_nodes]
             if s1 == state
                 fin = join(Int.(replace(x -> x == -1 ? 0 : 1, state)))

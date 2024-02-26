@@ -191,7 +191,7 @@ function asyncRandUpdate(update_matrix::Array{Int,2},
     nInit::Int, nIter::Int, randVec::Array{Float64,1})
     n_nodes = size(update_matrix,1)
     nzId = enumerate(findall(update_matrix.!=0))
-    update_matrix = [Float64(i) for i in update_matrix]
+    update_matrix = float(update_matrix)
     for (i,j) in nzId
         update_matrix[j] = update_matrix[j]*randVec[i]
     end
@@ -213,6 +213,7 @@ function asyncRandUpdate(update_matrix::Array{Int,2},
         for j in 1:nIter
             time = time + 1
             s1 = float(sign.(update_matrix2*state))
+            s1 = [s1[i] == 0 ? state[i] : s1[i] for i in 1:n_nodes]
             u = rand(1:n_nodes, 1)
             if iszero(j%2) # check after every two steps,hopefully reduce the time
                 if s1 == state
