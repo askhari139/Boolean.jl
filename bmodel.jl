@@ -31,14 +31,14 @@ Passive outputs :
 =#
 function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, type::Int=0, randSim::Bool = false,
-    randVec::Array{Float64, 1}=[0.0], shubham = false, discrete = true, nLevels = 2,
+    randVec::Array{Float64, 1}=[0.0], shubham = false, nLevels::Union{Int, Vector{Int}} = 2,
     vaibhav::Bool = false, csb::Bool = false, timeStep::Float64 = 0.1,
     discreteState::Bool = true, nonMatrix::Bool = true,
     turnOffNodes::Array{Int,1} = Int[], oddLevel::Bool = false,
     negativeOdd::Bool = false)
     update_matrix,Nodes = topo2interaction(topoFile, type)
     if shubham == true
-        state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter, discrete; nLevels = nLevels, vaibhav = vaibhav, turnOffNodes = turnOffNodes)
+        state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter; nLevels = nLevels, vaibhav = vaibhav, turnOffNodes = turnOffNodes)
     elseif csb == true
         state_df, frust_df = csbUpdate(update_matrix, nInit, nIter; timeStep = timeStep, discreteState = discreteState)
     elseif oddLevel == true
@@ -101,7 +101,7 @@ Passive outputs :
 function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, reps::Int = 3,
     types::Array{Int, 1} = [0],init::Bool=false, randSim::Bool=false, root::String="", 
-    randVec::Array{Float64,1}=[0.0], shubham = false, discrete = false, nLevels = 2,
+    randVec::Array{Float64,1}=[0.0], shubham = false, nLevels::Union{Int, Vector{Int}} = 2,
     vaibhav::Bool = false, csb::Bool = false, timeStep::Float64 = 0.1,
     discreteState::Bool = false, nonMatrix::Bool = false,
     turnOffNodes::Union{Int64, Array{Int,1}} = Int[], 
@@ -127,7 +127,7 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
             states_df, Nodes, frust_df = bmodel(topoFile, nInit = nInit, 
                 nIter = nIter, mode = mode, stateRep = stateRep, type = type, 
                 randSim = randSim, randVec = randVec, shubham = shubham, 
-                discrete = discrete, nLevels = nLevels, vaibhav = vaibhav,
+                nLevels = nLevels, vaibhav = vaibhav,
                 csb = csb, timeStep = timeStep, discreteState = discreteState,
                 nonMatrix = nonMatrix, turnOffNodes = turnOffNodes,
                 oddLevel = oddLevel, negativeOdd = negativeOdd)
