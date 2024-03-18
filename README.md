@@ -6,7 +6,7 @@ This code is used to simulate networks using an Ising Boolean formalism, previou
 ```
 git clone https://github.com/askhari139/Boolean.jl
 ```
-**2.** Install Julia (tested on 1.4 and 1.6 versions of Julia). 
+**2.** Install Julia (tested on 1.6, 1.8, 1.9 and 1.10 versions of Julia). 
 
 **3.** Run the script ``dependencyInstaller.jl``. This will install all required packages.
 ```
