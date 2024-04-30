@@ -7,3 +7,6 @@
 5. Basin parameters
     1. list of hamming distances of init conditions
 6. Initial conditions that converge to multiple steady states
+7. Multi-level formalism: update the nodes only if there is a change.
+8. Implement QSSA in boolean formalism
+9. Implement logic based functions

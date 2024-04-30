@@ -51,14 +51,10 @@ function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
                 state_df, frust_df = asyncNIsingNoFunc(update_matrix, nInit, nIter)
             end
         else
-            if stateRep == -1
-                if randSim
-                    state_df, frust_df = asyncRandUpdate(update_matrix, nInit, nIter, randVec)
-                else 
-                    state_df, frust_df = asyncUpdate(update_matrix, nInit, nIter)
-                end
-            else
-                state_df, frust_df = asyncUpdate2(update_matrix, nInit, nIter)
+            if randSim
+                state_df, frust_df = asyncRandUpdate(update_matrix, nInit, nIter, randVec, stateRep)
+            else 
+                state_df, frust_df = asyncUpdate(update_matrix, nInit, nIter, stateRep)
             end
         end
     else

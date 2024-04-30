@@ -4,21 +4,21 @@ function topo2interaction(topoFile::String, type::Int=0)
     dropmissing!(df)
     Nodes = sort(unique(vcat(df.Source, df.Target)))
     n_nodes = length(Nodes)
-    update_matrix = zeros(Int64, n_nodes, n_nodes)
+    update_matrix = zeros(typeof(df.Type[1]), n_nodes, n_nodes)
     for i in 1:size(df, 1)
         if df[i, 3] == 2
             df[i,3] = -1
         end
         j = findfirst(x->x==df[i,1], Nodes)
         k = findfirst(x->x==df[i,2], Nodes)
-        update_matrix[j,k] = Int64(df[i,3])
+        update_matrix[j,k] = df[i,3]
     end
     if type == 1
-        replace!(x -> x == 1 ? 100 : x, update_matrix)
+        replace!(x -> x >0 ? 100*x : x, update_matrix)
     end
 
     if type == 2
-        replace!(x -> x == -1 ? -100 : x, update_matrix)
+        replace!(x -> x <0 ? 100*x : x, update_matrix)
     end
     return update_matrix,Nodes
 end
@@ -72,28 +72,16 @@ end
 # end
 function frustration(state::Union{Array{Int,1}, Array{Float64,1}}, 
     nonZeros::Union{Tuple{Array{Int64,1},Array{Int64,1},Array{Float64,1}},
-    Tuple{Array{Int64,1},Array{Int64,1},Array{Int64,1}}})
+    Tuple{Array{Int64,1},Array{Int64,1},Array{Int64,1}}};negConv = false)
     frustration = 0
     nEdges = length(nonZeros[1])
+    if (negConv)
+        state = replace(x -> x == 0 ? -1 : x, state)
+    end
     for (x,y,v) in zip(nonZeros...)
         s = state[x]*state[y]*v
         if s<0
             frustration = frustration + abs(s)
-        end
-    end
-    frustration = frustration/nEdges
-    return frustration
-end
-
-## 
-function frustration0(state::Array{Int,1}, 
-    nonZeros::Tuple{Array{Int64,1},Array{Int64,1},Array{Int64,1}})
-    frustration = 0
-    nEdges = length(nonZeros[1])
-    for (x,y,v) in zip(nonZeros...)
-        p = state[x] == state[y]
-        if ((p == true) & (v == 1)) | ((p == false) & (v == -1))
-            frustration = frustration + 1
         end
     end
     frustration = frustration/nEdges
@@ -186,6 +174,10 @@ end
 
 function zeroConv(state::Array{Float64,1})
     replace(x -> x == -1 ? 0 : x, Int.(sign.(state)))
+end
+
+function signVec(state)
+    sign.(state)
 end
 
 function getNodes(topoFile::String)

@@ -50,6 +50,18 @@ function edgeWeightPert(topoFile::String; nPerts::Int=10000, nInit::Int64=10000,
 
 end
 
+function weightedTopoSim(topoFiles::Vector{String}; nInit::Int64=10000, 
+    nIter::Int64=1000, mode::String="Async", stateRep::Int64=-1, reps::Int = 3)
+    p = Progress(nPerts)
+    Threads.@threads for topoFile in topoFiles
+        # println(string(i))
+        bmodel_reps(topoFile; nInit = nInit, nIter = nIter, mode = mode,
+        stateRep = stateRep, randSim=true, root = string(i), 
+        randVec = rands[i,:], types = types, reps = reps)
+    end
+    finish!(p)
+    cd(d1)
+end
 
 function getSSListRand(topoFile::String;
     minWeight::Float64=0.0, maxWeight::Float64=1.0, nPerts::Int=10000)

@@ -17,9 +17,9 @@ Passive outputs :
     The function writes states_df to a csv file if csv = true in input
 =#
 function asyncUpdate(update_matrix::Array{Int,2},
-    nInit::Int, nIter::Int)
+    nInit::Int, nIter::Int, stateRep::Int)
     n_nodes = size(update_matrix,1)
-    stateVec = Int[-1,1]
+    stateVec = ifelse(stateRep == 0, [0,1], [-1,1])
     initVec = []
     finVec = []
     flagVec = []
@@ -28,25 +28,39 @@ function asyncUpdate(update_matrix::Array{Int,2},
     # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
     update_matrix2 = 2*update_matrix + Matrix(I, n_nodes, n_nodes)
     update_matrix2 = sparse(update_matrix2')
+    updFunc = ifelse(stateRep == 0, zeroConv, signVec)
     @showprogress for i in 1:nInit
         state = rand(stateVec, n_nodes) #pick random state
-        init = join(["'", join(replace(x -> x == -1 ? 0 : x, state)), "'"])
+        init = join(["'", join(zeroConv(state)), "'"])
         flag = 0
-        time = 0
-        for j in 1:nIter
-            time = time + 1
-            s1 = sign.(update_matrix2*state)
-            u = rand(1:n_nodes, 1)
-            if iszero(j%2) # check after every two steps,hopefully reduce the time
+        time = 1
+        uList = rand(1:n_nodes, nIter)
+        j = 1
+        while j <= nIter
+            s1 = updFun(update_matrix2*state)
+            if iszero(j%10) # check after every two steps,hopefully reduce the time
                 if s1 == state
                     flag = 1
                     break
                 end
             end
+            u = uList[j]
+            while s1[u] == state[u]
+                j = j + 1
+                time = time + 1
+                if j > nIter
+                    break
+                end
+                u = uList[j]
+            end
             state[u] = s1[u]
         end
-        fr = frustration(state, findnz(sparse(update_matrix)))
-        fin = join(["'", join(replace(x -> x == -1 ? 0 : x, state)), "'"])
+        if stateRep == 0
+            fr = frustration(state, findnz(sparse(update_matrix)); negConv = true)
+        else
+            fr = frustration(state, findnz(sparse(update_matrix)))
+        end
+        fin = join(["'", join(zeroConv(state)), "'"])
         push!(frustVec, fr)
         push!(initVec, init)
         push!(finVec, fin)
@@ -68,57 +82,6 @@ function asyncUpdate(update_matrix::Array{Int,2},
 end
 
 
-function asyncUpdate2(update_matrix::Array{Int,2},
-    nInit::Int, nIter::Int)
-    n_nodes = size(update_matrix,1)
-    stateVec = Int[0,1]
-    initVec = []
-    finVec = []
-    flagVec = []
-    frustVec = []
-    timeVec = []
-    # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
-    update_matrix2 = 2*update_matrix + Matrix(I, n_nodes, n_nodes)
-    update_matrix2 = sparse(update_matrix2')
-    @showprogress for i in 1:nInit
-        state = rand(stateVec, n_nodes) #pick random state
-        init = join(["'", join(state), "'"])
-        flag = 0
-        time = 0
-        for j in 1:nIter
-            time = time + 1
-            s1 = zeroConv(update_matrix2*state)
-            u = rand(1:n_nodes, 1)
-            if iszero(j%2) # check after every two steps,hopefully reduce the time
-                if s1 == state
-                    flag = 1
-                    break
-                end
-            end
-            state[u] = s1[u]
-        end
-        fr = frustration0(state, findnz(sparse(update_matrix)))
-        fin = join(["'", join(state), "'"])
-        push!(frustVec, fr)
-        push!(initVec, init)
-        push!(finVec, fin)
-        push!(flagVec, flag)
-        push!(timeVec, time)       
-        # push!(states_df, (init, fin, flag))
-    end
-    states_df = DataFrame(init=initVec, 
-            fin = finVec, flag = flagVec)
-    frust_df = DataFrame(fin = finVec, 
-        frust = frustVec)
-    frust_df = unique(frust_df, :fin)
-    timeData = DataFrame(fin = finVec, time = timeVec)
-    timeData = groupby(timeData, :fin)
-    timeData = combine(timeData, :time => avg, renamecols = false)
-    frust_df = innerjoin(frust_df, timeData, on = :fin)
-    return states_df, frust_df
-end
-
-
 function async_stg(update_matrix::Array{Int,2})
     nSpecies = size(update_matrix)[1]
     state_list = liststates_df(nSpecies)
@@ -136,15 +99,17 @@ function async_stg(update_matrix::Array{Int,2})
     return stg
 end
 
-function asyncRandUpdate(update_matrix::Array{Int,2},
-    nInit::Int, nIter::Int, randVec::Array{Float64,1})
+function asyncRandUpdate(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
+    nInit::Int, nIter::Int, randVec::Array{Float64,1}, stateRep::Int)
     n_nodes = size(update_matrix,1)
-    nzId = enumerate(findall(update_matrix.!=0))
-    update_matrix = float(update_matrix)
-    for (i,j) in nzId
-        update_matrix[j] = update_matrix[j]*randVec[i]
+    if typeof(update_matrix) == Array{Int, 2}
+        nzId = enumerate(findall(update_matrix.!=0))
+        update_matrix = float(update_matrix)
+        for (i,j) in nzId
+            update_matrix[j] = update_matrix[j]*randVec[i]
+        end
     end
-    stateVec = [-1.0,1.0]
+    stateVec = ifelse(stateRep == 0, [0.0,1.0], [-1.0,1.0])
     initVec = []
     finVec = []
     flagVec = []
@@ -156,81 +121,33 @@ function asyncRandUpdate(update_matrix::Array{Int,2},
     update_matrix2 = sparse(update_matrix')
     for i in 1:nInit
         state = rand(stateVec, n_nodes) #pick random state
-        init = join(["'", join(Int.(replace(x -> x == -1.0 ? 0 : 1, state))), "'"])
+        init = join(["'", join(Int.(zeroConv(state))), "'"])
         flag = 0
-        time = 0
+        time = 1
+        uList = rand(1:n_nodes, nIter)
+        updFunc = ifelse(stateRep == 0, zeroConv, signVec)
         for j in 1:nIter
-            time = time + 1
-            s1 = float(sign.(update_matrix2*state))
+            s1 = float(updFunc(update_matrix2*state))
             s1 = [s1[i] == 0 ? state[i] : s1[i] for i in 1:n_nodes]
-            u = rand(1:n_nodes, 1)
-            if iszero(j%2) # check after every two steps,hopefully reduce the time
+            if iszero(j%10) # check after every two steps,hopefully reduce the time
                 if s1 == state
                     flag = 1
                     break
                 end
             end
-            if (s1[u] != 0)
-                state[u] = s1[u]
-            end
-        end
-        fr = frustration(state, findnz(sparse(update_matrix)))
-        fin = join(["'", join(Int.(replace(x -> x == -1.0 ? 0 : 1, state))), "'"])
-        push!(frustVec, fr)
-        push!(initVec, init)
-        push!(finVec, fin)
-        push!(flagVec, flag)       
-        push!(timeVec, time)
-        # push!(states_df, (init, fin, flag))
-    end
-    states_df = DataFrame(init=initVec, 
-            fin = finVec, flag = flagVec)
-    frust_df = DataFrame(fin = finVec, 
-        frust = frustVec)
-    frust_df = unique(frust_df, :fin)
-    timeData = DataFrame(fin = finVec, time = timeVec)
-    timeData = groupby(timeData, :fin)
-    timeData = combine(timeData, :time => avg, renamecols = false)
-    frust_df = innerjoin(frust_df, timeData, on = :fin)
-    return states_df, frust_df
-end
-
-
-function asyncRandUpdate0(update_matrix::Array{Int,2},
-    nInit::Int, nIter::Int, randVec::Array{Float64,1})
-    n_nodes = size(update_matrix,1)
-    nzId = enumerate(findall(update_matrix.!=0))
-    update_matrix = [Float64(i) for i in update_matrix]
-    for (i,j) in nzId
-        update_matrix[j] = update_matrix[j]*randVec[i]
-    end
-    stateVec = Int[0,1]
-    initVec = []
-    finVec = []
-    flagVec = []
-    frustVec = []
-    timeVec = []
-    minVal = minimum([abs(update_matrix[j]) for (i,j) in nzId])
-    update_matrix2 = update_matrix + Matrix(I, n_nodes, n_nodes)*(minVal/2)
-    update_matrix2 = sparse(update_matrix2')
-    for i in 1:nInit
-        state = rand(stateVec, n_nodes) #pick random state
-        init = join(["'", join(state), "'"])
-        flag = 0
-        for j in 1:nIter
-            time = time + 1
-            s1 = zeroConv(update_matrix2*state)
-            u = rand(1:n_nodes, 1)
-            if iszero(j%2) # check after every two steps,hopefully reduce the time
-                if s1 == state
-                    flag = 1
+            u = uList[j]
+            while s1[u] == state[u]
+                j = j + 1
+                time = time + 1
+                if j > nIter
                     break
                 end
+                u = uList[j]
             end
             state[u] = s1[u]
         end
-        fr = frustration(state, findnz(sparse(update_matrix)))
-        fin = join(["'", join(state), "'"])
+        fr = ifelse(stateRep == 0, frustration(state, findnz(sparse(update_matrix)); negConv = true), frustration(state, findnz(sparse(update_matrix)); negConv = false))
+        fin = join(["'", join(Int.(zeroConv(state))), "'"])
         push!(frustVec, fr)
         push!(initVec, init)
         push!(finVec, fin)
