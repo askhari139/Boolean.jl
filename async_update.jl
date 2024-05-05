@@ -31,27 +31,30 @@ function asyncUpdate(update_matrix::Array{Int,2},
     updFunc = ifelse(stateRep == 0, zeroConv, signVec)
     @showprogress for i in 1:nInit
         state = rand(stateVec, n_nodes) #pick random state
-        init = join(["'", join(zeroConv(state)), "'"])
+        init = join(zeroConv(state), "_")
         flag = 0
         time = 1
         uList = rand(1:n_nodes, nIter)
         j = 1
         while j <= nIter
-            s1 = updFun(update_matrix2*state)
-            if iszero(j%10) # check after every two steps,hopefully reduce the time
-                if s1 == state
-                    flag = 1
-                    break
-                end
-            end
+            s1 = updFunc(update_matrix2*state)
             u = uList[j]
             while s1[u] == state[u]
+                if iszero(j%10) # check after every ten steps,hopefully reduce the time
+                    if s1 == state
+                        flag = 1
+                        break
+                    end
+                end
                 j = j + 1
                 time = time + 1
                 if j > nIter
                     break
                 end
                 u = uList[j]
+            end
+            if flag == 1
+                break
             end
             state[u] = s1[u]
         end
@@ -60,7 +63,7 @@ function asyncUpdate(update_matrix::Array{Int,2},
         else
             fr = frustration(state, findnz(sparse(update_matrix)))
         end
-        fin = join(["'", join(zeroConv(state)), "'"])
+        fin = join(zeroConv(state), "_")
         push!(frustVec, fr)
         push!(initVec, init)
         push!(finVec, fin)
@@ -104,6 +107,10 @@ function asyncRandUpdate(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     n_nodes = size(update_matrix,1)
     if typeof(update_matrix) == Array{Int, 2}
         nzId = enumerate(findall(update_matrix.!=0))
+        if randVec == [0.0]
+            state_df, frust_df = asyncUpdate(update_matrix, nInit, nIter, stateRep)
+            return state_df, frust_df
+        end
         update_matrix = float(update_matrix)
         for (i,j) in nzId
             update_matrix[j] = update_matrix[j]*randVec[i]
@@ -121,7 +128,7 @@ function asyncRandUpdate(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     update_matrix2 = sparse(update_matrix')
     for i in 1:nInit
         state = rand(stateVec, n_nodes) #pick random state
-        init = join(["'", join(Int.(zeroConv(state))), "'"])
+        init = join(Int.(zeroConv(state)), "_")
         flag = 0
         time = 1
         uList = rand(1:n_nodes, nIter)
@@ -129,14 +136,14 @@ function asyncRandUpdate(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
         for j in 1:nIter
             s1 = float(updFunc(update_matrix2*state))
             s1 = [s1[i] == 0 ? state[i] : s1[i] for i in 1:n_nodes]
-            if iszero(j%10) # check after every two steps,hopefully reduce the time
-                if s1 == state
-                    flag = 1
-                    break
-                end
-            end
             u = uList[j]
             while s1[u] == state[u]
+                if iszero(j%10) # check after every two steps,hopefully reduce the time
+                    if s1 == state
+                        flag = 1
+                        break
+                    end
+                end
                 j = j + 1
                 time = time + 1
                 if j > nIter
@@ -144,10 +151,13 @@ function asyncRandUpdate(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
                 end
                 u = uList[j]
             end
+            if flag == 1
+                break
+            end
             state[u] = s1[u]
         end
         fr = ifelse(stateRep == 0, frustration(state, findnz(sparse(update_matrix)); negConv = true), frustration(state, findnz(sparse(update_matrix)); negConv = false))
-        fin = join(["'", join(Int.(zeroConv(state))), "'"])
+        fin = join(Int.(zeroConv(state)), "_")
         push!(frustVec, fr)
         push!(initVec, init)
         push!(finVec, fin)

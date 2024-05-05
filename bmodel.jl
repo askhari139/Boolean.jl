@@ -37,6 +37,10 @@ function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     turnOffNodes::Array{Int,1} = Int[], oddLevel::Bool = false,
     negativeOdd::Bool = false)
     update_matrix,Nodes = topo2interaction(topoFile, type)
+    if length(Nodes) > 50
+        print("Too many nodes. Exiting.")
+        return 0,0,0
+    end
     if shubham == true
         state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter; nLevels = nLevels, vaibhav = vaibhav, turnOffNodes = turnOffNodes)
     elseif csb == true
@@ -127,6 +131,10 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
                 csb = csb, timeStep = timeStep, discreteState = discreteState,
                 nonMatrix = nonMatrix, turnOffNodes = turnOffNodes,
                 oddLevel = oddLevel, negativeOdd = negativeOdd)
+            if states_df == 0
+                print("Too many nodes. Exiting.")
+                return
+            end
             # state_df = dropmissing(state_df, disallowmissing = true)
             push!(frust_df_list, frust_df)
             # Frequnecy table 

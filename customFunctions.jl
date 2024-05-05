@@ -1,7 +1,6 @@
 ### Edge weights
 
-function edgeWeightPert(topoFile::String; nPerts::Int=10000, nInit::Int64=10000, 
-    nIter::Int64=1000,
+function edgeWeightPert(topoFile::String; nPerts::Int=10000, nInit::Int64=10000, nIter::Int64=1000, 
     mode::String="Async", stateRep::Int64=-1, reps::Int = 3, csv::Bool=false, 
     types::Array{Int, 1} = [0],
     minWeight::Float64=0.0, maxWeight::Float64=1.0,
