@@ -39,6 +39,12 @@ function asyncUpdate(update_matrix::Array{Int,2},
         while j <= nIter
             s1 = updFunc(update_matrix2*state)
             u = uList[j]
+            if s1[u] != state[u]
+                j = j + 1
+                time = time + 1
+                state[u] = s1[u]
+                continue
+            end
             while s1[u] == state[u]
                 if iszero(j%10) # check after every ten steps,hopefully reduce the time
                     if s1 == state
