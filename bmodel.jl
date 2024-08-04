@@ -105,6 +105,7 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     vaibhav::Bool = false, csb::Bool = false, timeStep::Float64 = 0.1,
     discreteState::Bool = false, nonMatrix::Bool = false,
     turnOffNodes::Union{Int64, Array{Int,1}} = Int[], 
+        turnOffKey = "",
     oddLevel::Bool = false, negativeOdd::Bool = false,
     write::Bool = true, getData::Bool = false)
     update_matrix,Nodes = topo2interaction(topoFile)
@@ -248,8 +249,12 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
                 if (nTurnOff == nNodes || nTurnOff == 0)
                     rootName = join([rootName, "_All"])
                 else
-                    tList = join(turnOffNodes, "_")
-                    rootName = join([rootName, "_", tList])
+                    if turnOffKey != ""
+                        rootName = join([rootName, "_", turnOffKey])
+                    else
+                        tList = join(turnOffNodes, "_")
+                        rootName = join([rootName, "_", tList])
+                    end
                 end
             end
         end
