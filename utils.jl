@@ -189,3 +189,49 @@ function getNodes(topoFile::String)
     end
     close(io);
 end
+
+
+function getPeripherals(topoFile::String; repeat::Bool=false)
+    update_matrix,Nodes = topo2interaction(topoFile)
+    # change update_matrix to _positive
+    update_matrix = abs.(update_matrix)
+    signals = []
+    outputs = []
+    for i in eachindex(Nodes)
+        if sum(update_matrix[:,i]) == 0
+            push!(signals, i)
+        end
+        if sum(update_matrix[i,:]) == 0
+            push!(outputs, i)
+        end
+    end
+    signalNodes = Nodes[signals]
+    outputNodes = Nodes[outputs]
+    if repeat
+        while length(signals) + length(outputs) > 0
+            peripherals = vcat(signals, outputs)
+            remaining = setdiff(1:length(Nodes), peripherals)
+            #remove peripheral nodes from Nodes vector
+            Nodes = Nodes[remaining]
+            #remove peripheral rows and columns
+            update_matrix = update_matrix[remaining, remaining]
+            signals = []
+            outputs = []
+            for i in eachindex(Nodes)
+                if sum(update_matrix[:,i]) == 0
+                    push!(signals, i)
+                end
+                if sum(update_matrix[i,:]) == 0
+                    push!(outputs, i)
+                end
+            end
+            if length(signals) != 0
+                signalNodes = vcat(signalNodes, Nodes[signals])
+            end
+            if length(outputs) != 0
+                outputNodes = vcat(outputNodes, Nodes[outputs])
+            end
+        end
+    end
+    return signalNodes, outputNodes
+end
