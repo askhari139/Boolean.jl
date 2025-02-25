@@ -117,7 +117,7 @@ function shubhamBoolean(update_matrix::Array{Int,2},
     # can't do 2U + I because the previous state has to be retained, which can be any number
     update_matrix2 = sparse(update_matrix')
     stateList = getindex.([rand(sVecList[i], nInit) for i in 1:n_nodes], (1:nInit)')
-    @showprogress for i in 1:nInit
+    for i in 1:nInit
         state = stateList[:,i] #pick random state
         init = stateConvert(state, nLevels)
         flag = 0

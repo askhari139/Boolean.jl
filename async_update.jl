@@ -17,7 +17,8 @@ Passive outputs :
     The function writes states_df to a csv file if csv = true in input
 =#
 function asyncUpdate(update_matrix::Array{Int,2},
-    nInit::Int, nIter::Int, stateRep::Int)
+    nInit::Int, nIter::Int, stateRep::Int, vaibhav::Bool, 
+    turnOffNodes::Array{Int,1})
     n_nodes = size(update_matrix,1)
     stateVec = ifelse(stateRep == 0, [0,1], [-1,1])
     initVec = []
@@ -26,7 +27,15 @@ function asyncUpdate(update_matrix::Array{Int,2},
     frustVec = []
     timeVec = []
     # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
-    update_matrix2 = 2*update_matrix + Matrix(I, n_nodes, n_nodes)
+    idMat = Matrix(I, n_nodes, n_nodes)
+    if vaibhav
+        if length(turnOffNodes) == 0
+            turnOffNodes = 1:n_nodes
+        end
+        idMat[turnOffNodes, :] .= 0
+    end
+
+    update_matrix2 = 2*update_matrix + idMat
     update_matrix2 = sparse(update_matrix2')
     updFunc = ifelse(stateRep == 0, zeroConv, signVec)
     @showprogress for i in 1:nInit
@@ -109,7 +118,7 @@ function async_stg(update_matrix::Array{Int,2})
 end
 
 function asyncRandUpdate(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
-    nInit::Int, nIter::Int, randVec::Array{Float64,1}, stateRep::Int)
+    nInit::Int, nIter::Int, randVec::Array{Float64,1}, stateRep::Int64)
     n_nodes = size(update_matrix,1)
     if typeof(update_matrix) == Array{Int, 2}
         nzId = enumerate(findall(update_matrix.!=0))
@@ -181,6 +190,84 @@ function asyncRandUpdate(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     timeData = combine(timeData, :time => avg, renamecols = false)
     frust_df = innerjoin(frust_df, timeData, on = :fin)
     return states_df, frust_df
+end
+
+
+function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
+    nInit::Int, nIter::Int, stateRep::Int; randVec::Array{Float64,1} = [0.0], 
+    weightFunc::Function = defaultWeightsFunction(0.01), 
+    frequency::Int = 1, steadyStates::Bool = true)
+    n_nodes = size(update_matrix,1)
+    if steadyStates
+        updm = sign.(update_matrix)
+        states_df, frust_df = asyncUpdate(updm, 10000, 1000, stateRep)
+        states = states_df[:, :fin]
+        states = rand(states, nInit)
+    end
+    update_matrix = update_matrix'
+    nzId = enumerate(findall(update_matrix.!=0))
+    if typeof(update_matrix) == Adjoint{Int64, Matrix{Int64}}
+        if randVec == [0.0]
+            randVec = rand(length(nzId))
+        end
+        update_matrix = float(update_matrix)
+        for (i,j) in nzId
+            update_matrix[j] = update_matrix[j]*randVec[i]
+        end
+    else
+        randVec = [update_matrix[j] for (i,j) in nzId]
+    end
+    stateVec = ifelse(stateRep == 0, [0.0,1.0], [-1.0,1.0])
+    initVec = []
+    finVec = []
+    flagVec = []
+    frustVec = []
+    timeVec = []
+    sListUnique = []
+    sListKeys = []
+    # create a state matrix of size nInit x nIter
+    stateMatrix = zeros(Int, nInit, nIter)
+    @showprogress for i in 1:nInit
+        # print(i)
+        update_matrix2 = update_matrix
+        if steadyStates
+            state = parse.(Float64, split(states[i], "_"))
+        else
+            state = rand(stateVec, n_nodes) #pick random state
+        end
+        init = join(Int.(zeroConv(state)), "_")
+        flag = 0
+        time = 1
+        uList = rand(1:n_nodes, nIter)
+        updFunc = ifelse(stateRep == 0, zeroConv, signVec)
+        sList = [init]
+        for j in 2:nIter
+            s1 = float(updFunc(update_matrix2*state))
+            if iszero(j%frequency)
+                randVec = weightFunc(randVec)
+                for (k,l) in nzId
+                    update_matrix2[l] = update_matrix[l]*randVec[k]
+                end
+            end
+            s1 = [s1[i] == 0 ? state[i] : s1[i] for i in 1:n_nodes]
+            u = uList[j]
+            state[u] = s1[u]
+            st = join(Int.(zeroConv(state)), "_")
+            push!(sList, st)
+        end
+        sUnique = unique(sList)
+        for st in sUnique
+            if st in sListKeys
+                continue
+            end
+            # push!(sListKeys, st)
+            push!(sListUnique, st)
+        end
+        # sList is the ID of each state in sListUnique
+        sInt = [findfirst(x -> x == st, sListUnique) for st in sList]
+        stateMatrix[i,:] = sInt
+    end
+    return stateMatrix, sListUnique
 end
 
 function asyncOEDE(update_matrix::Array{Int,2},

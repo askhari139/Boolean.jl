@@ -1,7 +1,6 @@
 include("dependencies.jl")
 include("utils.jl")
 include("async_update.jl")
-# include("shubhamBoolean.jl")
 include("multiLevel_shubham.jl")
 include("CSB.jl")
 include("async_non_matrix.jl")
@@ -31,18 +30,23 @@ Passive outputs :
 =#
 function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, type::Int=0, randSim::Bool = false,
-    randVec::Array{Float64, 1}=[0.0], shubham = false, nLevels::Union{Int, Vector{Int}} = 2,
+    randVec::Array{Float64, 1}=[0.0], shubham = false, 
+    nLevels::Union{Int, Vector{Int}, String} = 2,
     vaibhav::Bool = false, csb::Bool = false, timeStep::Float64 = 0.1,
     discreteState::Bool = true, nonMatrix::Bool = true,
     turnOffNodes::Array{Int,1} = Int[], oddLevel::Bool = false,
-    negativeOdd::Bool = false)
+    negativeOdd::Bool = false, maxNodes::Int = 50)
     update_matrix,Nodes = topo2interaction(topoFile, type)
-    if length(Nodes) > 50
+    if length(Nodes) > maxNodes
         print("Too many nodes. Exiting.")
         return 0,0,0
     end
     if shubham == true
-        state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter; nLevels = nLevels, vaibhav = vaibhav, turnOffNodes = turnOffNodes)
+        if nLevels == 0
+            state_df, frust_df = asyncUpdate(update_matrix, nInit, nIter, stateRep, vaibhav, turnOffNodes)
+        else
+            state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter; nLevels = nLevels, vaibhav = vaibhav, turnOffNodes = turnOffNodes)
+        end
     elseif csb == true
         state_df, frust_df = csbUpdate(update_matrix, nInit, nIter; timeStep = timeStep, discreteState = discreteState)
     elseif oddLevel == true
@@ -58,7 +62,7 @@ function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
             if randSim
                 state_df, frust_df = asyncRandUpdate(update_matrix, nInit, nIter, randVec, stateRep)
             else 
-                state_df, frust_df = asyncUpdate(update_matrix, nInit, nIter, stateRep)
+                state_df, frust_df = asyncUpdate(update_matrix, nInit, nIter, stateRep, vaibhav, turnOffNodes)
             end
         end
     else
@@ -101,13 +105,14 @@ Passive outputs :
 function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, reps::Int = 3,
     types::Array{Int, 1} = [0],init::Bool=false, randSim::Bool=false, root::String="", 
-    randVec::Array{Float64,1}=[0.0], shubham = false, nLevels::Union{Int, Vector{Int}} = 2,
+    randVec::Array{Float64,1}=[0.0], shubham = false, 
+    nLevels::Union{Int, Vector{Int}, String} = 2,
     vaibhav::Bool = false, csb::Bool = false, timeStep::Float64 = 0.1,
     discreteState::Bool = false, nonMatrix::Bool = false,
     turnOffNodes::Union{Int64, Array{Int,1}} = Int[], 
         turnOffKey = "",
     oddLevel::Bool = false, negativeOdd::Bool = false,
-    write::Bool = true, getData::Bool = false)
+    write::Bool = true, getData::Bool = false, maxNodes::Int = 50)
     update_matrix,Nodes = topo2interaction(topoFile)
     nNodes = length(Nodes)
     finFlagFreqFinal_df_list_list = []
@@ -131,7 +136,7 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
                 nLevels = nLevels, vaibhav = vaibhav,
                 csb = csb, timeStep = timeStep, discreteState = discreteState,
                 nonMatrix = nonMatrix, turnOffNodes = turnOffNodes,
-                oddLevel = oddLevel, negativeOdd = negativeOdd)
+                oddLevel = oddLevel, negativeOdd = negativeOdd, maxNodes = maxNodes)
             if states_df == 0
                 print("Too many nodes. Exiting.")
                 return
@@ -243,18 +248,18 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
         end
         if shubham
             rootName = join([rootName, "_shubham_", nLevels])
-            if vaibhav
-                rootName = join([rootName, "_turnOff"])
-                nTurnOff = length(turnOffNodes)
-                if (nTurnOff == nNodes || nTurnOff == 0)
-                    rootName = join([rootName, "_All"])
+        end
+        if vaibhav
+            rootName = join([rootName, "_turnOff"])
+            nTurnOff = length(turnOffNodes)
+            if (nTurnOff == nNodes || nTurnOff == 0)
+                rootName = join([rootName, "_All"])
+            else
+                if turnOffKey != ""
+                    rootName = join([rootName, "_", turnOffKey])
                 else
-                    if turnOffKey != ""
-                        rootName = join([rootName, "_", turnOffKey])
-                    else
-                        tList = join(turnOffNodes, "_")
-                        rootName = join([rootName, "_", tList])
-                    end
+                    tList = join(turnOffNodes, "_")
+                    rootName = join([rootName, "_", tList])
                 end
             end
         end
@@ -277,12 +282,13 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
             rootName = join([rootName, "_nonMatrix"])
         end
         finFlagFreqName = join([rootName, "_finFlagFreq.csv"])
-
+        finFlagFreqFinal_df = sort(finFlagFreqFinal_df, order(:Avg0, rev = true))
         CSV.write(finFlagFreqName, finFlagFreqFinal_df)
 
 
         if init
             initFinFlagFreqName = join([rootName, "_initFinFlagFreq.csv"])
+            initFinFlagFreqFinal_df = sort(initFinFlagFreqFinal_df, order(:Avg0, rev = true))
             CSV.write(initFinFlagFreqName, initFinFlagFreqFinal_df)
         end
     end

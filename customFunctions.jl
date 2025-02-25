@@ -62,6 +62,44 @@ function weightedTopoSim(topoFiles::Vector{String}; nInit::Int64=10000,
     cd(d1)
 end
 
+function contWeightPert(topoFile::String; nInit::Int64=1000,
+    nIter::Int64=100000, mode::String="Async", stateRep::Int64=-1, 
+    noise::Float64=0.01, randVec = [0.0], steadyStates::Bool=true)
+    updMat, nodes = topo2interaction(topoFile)
+    stateMat, states = asyncRandCont(updMat, nInit, nIter, stateRep; 
+        weightFunc = defaultWeightsFunction(noise), randVec = randVec, 
+        steadyStates=steadyStates)
+    MRT = []
+    MRTsd = []
+    switchingEvents = []
+    for i in eachindex(states)
+        m = [sum(stateMat[j, :].== i)/nIter for j in 1:size(stateMat, 1)]
+        push!(MRT, avg(m))
+        push!(MRTsd, SD(m))
+    end
+    for i in 1:size(stateMat, 1)
+        s = stateMat[i, :]
+        counter = 0
+        for t in eachindex(s)
+            if t == 1
+                continue
+            end
+            if s[t] != s[t-1]
+                counter = counter + 1
+            end
+        end
+        push!(switchingEvents, counter)
+    end
+    # write stateMat to a file with the name topoFile_contWeightPert.dat
+    stateMat = DataFrame(stateMat, :auto)
+    CSV.write(replace(topoFile, ".topo" => "_contWeightPert.csv"), stateMat)
+    # write states to a text file with the name topoFile_contWeightPert_states.txt
+    stateDf = DataFrame(states = states, MRT = MRT, MRTsd = MRTsd, 
+        ID = 1:length(states))
+    CSV.write(replace(topoFile, ".topo" => "_contWeightPertMRT.csv"), stateDf)
+    return 
+end
+
 function getSSListRand(topoFile::String;
     minWeight::Float64=0.0, maxWeight::Float64=1.0, nPerts::Int=10000)
     updMat, nodes = topo2interaction(topoFile)
@@ -127,32 +165,53 @@ function stg(topoFile::String, mode::String="Async")
 end
 
 ### single Node turnOff 
-function singleNodeTurnOff(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
+function scanNodeTurnOff(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     mode::String="Async", stateRep::Int64=-1, reps::Int = 3, init::Bool=false, 
     root::String="", nLevels = 2, progressMeter::Bool = false, 
-    getData::Bool = false)
+    getData::Bool = false, tSet::Array{Int, 1} = Int64[], getPrevious::Bool = false)
     update_matrix,Nodes = topo2interaction(topoFile)
     n_nodes = size(update_matrix,1)
-
-    ### Normal simulation
-    dfs = bmodel_reps(topoFile; nInit = nInit, nIter = nIter, 
-            mode = mode, stateRep = stateRep, reps = reps, init = init, nLevels = nLevels,
-            root = root, shubham = true, vaibhav = false, write = false, getData = true)
-    if init
-        init, finFlag = dfs
-        # add a turnOffNode column to init and finFlag with the value "None"
-        init[!, "turnOffNode"] .= "None"
-        initList = [init]
+    if getPrevious
+        if length(tSet) == 0
+        ### Normal simulation
+            dfs = bmodel_reps(topoFile; nInit = nInit, nIter = nIter, 
+                    mode = mode, stateRep = stateRep, reps = reps, init = init, nLevels = nLevels,
+                    root = root, shubham = true, vaibhav = false, write = false, getData = true)
+            if init
+                init, finFlag = dfs
+                # add a turnOffNode column to init and finFlag with the value "None"
+                init[!, "turnOffNode"] .= "None"
+                initList = [init]
+            else
+                finFlag = dfs
+            end
+            finFlag[!, "turnOffNode"] .= "None"
+            finFlagList = [finFlag]
+        else
+            dfs = bmodel_reps(topoFile; nInit = nInit, nIter = nIter, 
+                mode = mode, stateRep = stateRep, reps = reps, init = init, nLevels = nLevels,
+                root = root, shubham = true, vaibhav = true, write = false, getData = true, 
+                turnOffNodes = tSet)
+            if init
+                init, finFlag = dfs
+                initList = [init]
+            else
+                finFlag = dfs
+            end
+            finFlagList = [finFlag]
+        end
     else
-        finFlag = dfs
+        initList = []
+        finFlagList = []
     end
-    finFlag[!, "turnOffNode"] .= "None"
-    finFlagList = [finFlag]
-    Threads.@threads for i in 1:(n_nodes+1)
+    
+    Threads.@threads for i in 1:n_nodes
         if (i == n_nodes + 1)
             turnOffNodes = Int[]
+        elseif i in tSet
+            continue
         else
-            turnOffNodes = [i]
+            turnOffNodes = vcat(tSet, i)
         end
         dfs = bmodel_reps(topoFile; nInit = nInit, nIter = nIter, 
             mode = mode, stateRep = stateRep, reps = reps, init = init, nLevels = nLevels,
@@ -171,9 +230,9 @@ function singleNodeTurnOff(topoFile::String; nInit::Int64=10000, nIter::Int64=10
         end
         finFlagDf = vcat(finFlagList...)
         if init
-            CSV.write(replace(topoFile, ".topo" => "_singleNodeTurnOff_initFinFlagFreq.csv"), initDf)
+            CSV.write(replace(topoFile, ".topo" => "_scanNode_turnOff_initFinFlagFreq.csv"), initDf)
         end
-        CSV.write(replace(topoFile, ".topo" => "_singleNodeTurnOff_finFlagFreq.csv"), finFlagDf)
+        CSV.write(replace(topoFile, ".topo" => "_scanNode_turnOff_finFlagFreq.csv"), finFlagDf)
     if getData
         if init
             return initDf, finFlagDf

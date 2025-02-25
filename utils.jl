@@ -235,3 +235,20 @@ function getPeripherals(topoFile::String; repeat::Bool=false)
     end
     return signalNodes, outputNodes
 end
+
+function defaultWeightsFunction(noise::Float64)
+    function weightsFunction(randVec::Array{Float64,1})
+        #normal random variable with mean 0 and variance noise
+        randN = randn(length(randVec))*noise
+        rVec = Float64[]
+        for i in eachindex(randVec)
+            if (abs(randVec[i]) != 1)
+                push!(rVec, min(max(randVec[i] + randN[i], 0), 1))
+            else
+                push!(rVec, randVec[i])
+            end
+        end
+        return rVec
+    end
+    return weightsFunction
+end

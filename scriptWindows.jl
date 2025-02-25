@@ -1,4 +1,4 @@
-include("F:/Github/Projects/Ongoing/Boolean_project/shubhamBoolean/Bmodel/bmodel.jl")
+include("/Users/kishorehari/Desktop/Boolean.jl/bmodel.jl")
 using Base.Threads
 topoFiles = map(x->string(x), ARGS)
 println(Threads.nthreads())
