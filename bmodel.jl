@@ -6,6 +6,7 @@ include("CSB.jl")
 include("async_non_matrix.jl")
 include("customFunctions.jl")
 include("oddLevel.jl")
+include("logicalRules.jl")
 
 #=
 Author : Kishore Hari
@@ -35,7 +36,7 @@ function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     vaibhav::Bool = false, csb::Bool = false, timeStep::Float64 = 0.1,
     discreteState::Bool = true, nonMatrix::Bool = true,
     turnOffNodes::Array{Int,1} = Int[], oddLevel::Bool = false,
-    negativeOdd::Bool = false, maxNodes::Int = 50)
+    negativeOdd::Bool = false, maxNodes::Int = 100)
     update_matrix,Nodes = topo2interaction(topoFile, type)
     if length(Nodes) > maxNodes
         print("Too many nodes. Exiting.")
@@ -112,7 +113,7 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     turnOffNodes::Union{Int64, Array{Int,1}} = Int[], 
         turnOffKey = "",
     oddLevel::Bool = false, negativeOdd::Bool = false,
-    write::Bool = true, getData::Bool = false, maxNodes::Int = 50)
+    write::Bool = true, getData::Bool = false, maxNodes::Int = 100)
     update_matrix,Nodes = topo2interaction(topoFile)
     nNodes = length(Nodes)
     finFlagFreqFinal_df_list_list = []

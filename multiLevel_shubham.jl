@@ -106,7 +106,7 @@ function shubhamBoolean(update_matrix::Array{Int,2},
     # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
     update_matrix = float(update_matrix)
     updOriginal = copy(update_matrix)  # need it to calculate frustration
-    # dividing each column by the corresponding node indegree to ensure that the product is b/n -1 and 1
+    # dividing each column by the corresponding node indegree to ensure that the product is betweenn -1 and 1
     for i in 1:n_nodes
         n = sum(update_matrix[:,i] .!= 0)        
         if n == 0
