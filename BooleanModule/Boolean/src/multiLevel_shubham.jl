@@ -78,13 +78,15 @@ function getLevels(nLevels::Int = 2)
     levels = levels[1:(length(levels) - 1)]
     return levels
 end
-
+#
 function shubhamBoolean(update_matrix::Array{Int,2},
-    nInit::Int, nIter::Int; nLevels::Union{Int, Vector{Int}} = 2, 
+    nInit::Int, nIter::Int; nLevels::Union{Int, Vector{Int}, String} = 2, 
     vaibhav::Bool = false, turnOffNodes::Array{Int,1} = Int[])
     n_nodes = size(update_matrix,1)
     if (nLevels isa Int)
         nLevels = [nLevels for i in 1:n_nodes]
+    elseif (nLevels isa String)
+        nLevels = [sum(update_matrix[i,:] .!= 0) + 1 for i in 1:n_nodes]
     end
     sVecList = [getStateVec(nLevels[i]) for i in 1:n_nodes]
     initVec = []
@@ -103,23 +105,19 @@ function shubhamBoolean(update_matrix::Array{Int,2},
     end
     # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
     update_matrix = float(update_matrix)
-<<<<<<< Updated upstream:src/multiLevel_shubham.jl
-    updOriginal = copy(update_matrix)
-=======
     updOriginal = copy(update_matrix)  # need it to calculate frustration
     # dividing each column by the corresponding node indegree to ensure that the product is betweenn -1 and 1
->>>>>>> Stashed changes:multiLevel_shubham.jl
     for i in 1:n_nodes
-        n = length([(i,j) for j=1:n_nodes if update_matrix[j,i] == 0])        
-        n = n_nodes - n
+        n = sum(update_matrix[:,i] .!= 0)        
         if n == 0
             n = 1
         end
         update_matrix[:, i] = update_matrix[:, i]/n
     end
-    update_matrix2 = update_matrix'
+    # can't do 2U + I because the previous state has to be retained, which can be any number
+    update_matrix2 = sparse(update_matrix')
     stateList = getindex.([rand(sVecList[i], nInit) for i in 1:n_nodes], (1:nInit)')
-    @showprogress for i in 1:nInit
+    for i in 1:nInit
         state = stateList[:,i] #pick random state
         init = stateConvert(state, nLevels)
         flag = 0
@@ -127,20 +125,36 @@ function shubhamBoolean(update_matrix::Array{Int,2},
         uList = rand(1:n_nodes, nIter)
         states = sVecList
         levels = [getLevels(nLevels[k]) for k in 1:n_nodes]
-        for j in 1:nIter
-            time = time + 1
+        j = 1
+        while j < nIter
             st = copy(state)
             u = uList[j]
-            prod = update_matrix2[u:u,:]*st
-            st[u] = stateChar(prod[1], state[u], levels[u], states[u], vaibhav[u])
-            if iszero(j%10) && state[u] == st[u] # check after every 10 steps,hopefully reduce the time
-                s2 = stateChar(update_matrix2*st, state, levels, states, vaibhav)
-                if s2 == state
-                    flag = 1
+            prod = update_matrix2*st
+            s1 = stateChar(prod, state, levels, states, vaibhav)
+            if s1[u] != state[u]
+                j = j + 1
+                time = time + 1
+                state[u] = s1[u]
+                continue
+            end
+            while s1[u] == state[u]
+                if iszero(j%10) # check after every ten steps,hopefully reduce the time
+                    if s1 == state
+                        flag = 1
+                        break
+                    end
+                end
+                j = j + 1
+                time = time + 1
+                if j > nIter
                     break
                 end
+                u = uList[j]
             end
-            state = st
+            if flag == 1
+                break
+            end
+            state[u] = s1[u]
         end
         fr = shubhamFrust(state, findnz(sparse(updOriginal)))
         fin = stateConvert(state, nLevels)
