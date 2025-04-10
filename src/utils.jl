@@ -189,3 +189,66 @@ function getNodes(topoFile::String)
     end
     close(io);
 end
+
+
+function getPeripherals(topoFile::String; repeat::Bool=false)
+    update_matrix,Nodes = topo2interaction(topoFile)
+    # change update_matrix to _positive
+    update_matrix = abs.(update_matrix)
+    signals = []
+    outputs = []
+    for i in eachindex(Nodes)
+        if sum(update_matrix[:,i]) == 0
+            push!(signals, i)
+        end
+        if sum(update_matrix[i,:]) == 0
+            push!(outputs, i)
+        end
+    end
+    signalNodes = Nodes[signals]
+    outputNodes = Nodes[outputs]
+    if repeat
+        while length(signals) + length(outputs) > 0
+            peripherals = vcat(signals, outputs)
+            remaining = setdiff(1:length(Nodes), peripherals)
+            #remove peripheral nodes from Nodes vector
+            Nodes = Nodes[remaining]
+            #remove peripheral rows and columns
+            update_matrix = update_matrix[remaining, remaining]
+            signals = []
+            outputs = []
+            for i in eachindex(Nodes)
+                if sum(update_matrix[:,i]) == 0
+                    push!(signals, i)
+                end
+                if sum(update_matrix[i,:]) == 0
+                    push!(outputs, i)
+                end
+            end
+            if length(signals) != 0
+                signalNodes = vcat(signalNodes, Nodes[signals])
+            end
+            if length(outputs) != 0
+                outputNodes = vcat(outputNodes, Nodes[outputs])
+            end
+        end
+    end
+    return signalNodes, outputNodes
+end
+
+function defaultWeightsFunction(noise::Float64)
+    function weightsFunction(randVec::Array{Float64,1})
+        #normal random variable with mean 0 and variance noise
+        randN = randn(length(randVec))*noise
+        rVec = Float64[]
+        for i in eachindex(randVec)
+            if (abs(randVec[i]) != 1)
+                push!(rVec, min(max(randVec[i] + randN[i], 0), 1))
+            else
+                push!(rVec, randVec[i])
+            end
+        end
+        return rVec
+    end
+    return weightsFunction
+end
