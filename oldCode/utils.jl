@@ -252,15 +252,3 @@ function defaultWeightsFunction(noise::Float64)
     end
     return weightsFunction
 end
-
-function adjust_indices(indices, deleted)
-    sort!(deleted)
-    adjusted = Int[]
-
-    for idx in indices
-        ct = count(x -> x < idx, deleted)
-        push!(adjusted, idx - ct)
-    end
-
-    return adjusted
-end

@@ -18,9 +18,7 @@ Passive outputs :
 =#
 function asyncUpdate(update_matrix::Array{Int,2},
     nInit::Int, nIter::Int, stateRep::Int, vaibhav::Bool, 
-    turnOffNodes::Array{Int,1}, 
-    kdNodes::Array{Int, 1}, oeNodes::Array{Int, 1}, 
-    deleteNodes::Array{Int, 1} = Int[])
+    turnOffNodes::Array{Int,1})
     n_nodes = size(update_matrix,1)
     stateVec = ifelse(stateRep == 0, [0,1], [-1,1])
     initVec = []
@@ -40,18 +38,8 @@ function asyncUpdate(update_matrix::Array{Int,2},
     update_matrix2 = 2*update_matrix + idMat
     update_matrix2 = sparse(update_matrix2')
     updFunc = ifelse(stateRep == 0, zeroConv, signVec)
-    stateList = getindex.([rand(stateVec, nInit) for i in 1:n_nodes], (1:nInit)')
-    if (length(kdNodes) != 0)
-        stateList[kdNodes, :] .= stateVec[1]
-    end
-    if (length(oeNodes) != 0)
-        stateList[oeNodes, :] .= stateVec[2]
-    end
-    if (length(deleteNodes) != 0)
-        stateList[deleteNodes, :] .= 0
-    end
     @showprogress for i in 1:nInit
-        state = stateList[:,i] #pick random state
+        state = rand(stateVec, n_nodes) #pick random state
         init = join(zeroConv(state), "_")
         flag = 0
         time = 1
@@ -60,11 +48,6 @@ function asyncUpdate(update_matrix::Array{Int,2},
         while j <= nIter
             s1 = updFunc(update_matrix2*state)
             u = uList[j]
-            if u in kdNodes || u in oeNodes
-                j = j + 1
-                time = time + 1
-                continue
-            end
             if s1[u] != state[u]
                 j = j + 1
                 time = time + 1

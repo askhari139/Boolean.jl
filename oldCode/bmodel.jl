@@ -36,36 +36,17 @@ function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     vaibhav::Bool = false, csb::Bool = false, timeStep::Float64 = 0.1,
     discreteState::Bool = true, nonMatrix::Bool = true,
     turnOffNodes::Array{Int,1} = Int[], oddLevel::Bool = false,
-    negativeOdd::Bool = false, maxNodes::Int = 100, 
-    kdNodes::Array{Int, 1} = Int[], oeNodes::Array{Int, 1} = Int[],
-    deleteNodes::Array{Int, 1} = Int[])
+    negativeOdd::Bool = false, maxNodes::Int = 100)
     update_matrix,Nodes = topo2interaction(topoFile, type)
     if length(Nodes) > maxNodes
         print("Too many nodes. Exiting.")
         return 0,0,0
     end
-    if (length(deleteNodes) > 0)
-        # remove the corresponding rows and columns
-        keepNodes = setdiff(1:size(update_matrix, 1), deleteNodes)
-        update_matrix = update_matrix[keepNodes, keepNodes]
-        Nodes = Nodes[keepNodes]
-        # update kdNodes and oeNodes, if they are not empty
-        if (length(kdNodes) > 0)
-            kdNodes = setdiff(kdNodes, deleteNodes)
-            kdNodes = adjust_indices(kdNodes, deleteNodes)
-        end
-        if (length(oeNodes) > 0)
-            oeNodes = setdiff(oeNodes, deleteNodes)
-            oeNodes = adjust_indices(oeNodes, deleteNodes)
-        end
-    end
     if shubham == true
         if nLevels == 0
-            state_df, frust_df = asyncUpdate(update_matrix, nInit, nIter, stateRep, vaibhav, turnOffNodes, kdNodes, oeNodes)
+            state_df, frust_df = asyncUpdate(update_matrix, nInit, nIter, stateRep, vaibhav, turnOffNodes)
         else
-            state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter; 
-                nLevels = nLevels, vaibhav = vaibhav, turnOffNodes = turnOffNodes,
-                kdNodes = kdNodes, oeNodes = oeNodes)
+            state_df, frust_df = shubhamBoolean(update_matrix, nInit, nIter; nLevels = nLevels, vaibhav = vaibhav, turnOffNodes = turnOffNodes)
         end
     elseif csb == true
         state_df, frust_df = csbUpdate(update_matrix, nInit, nIter; timeStep = timeStep, discreteState = discreteState)
@@ -82,7 +63,7 @@ function bmodel(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
             if randSim
                 state_df, frust_df = asyncRandUpdate(update_matrix, nInit, nIter, randVec, stateRep)
             else 
-                state_df, frust_df = asyncUpdate(update_matrix, nInit, nIter, stateRep, vaibhav, turnOffNodes, kdNodes, oeNodes)
+                state_df, frust_df = asyncUpdate(update_matrix, nInit, nIter, stateRep, vaibhav, turnOffNodes)
             end
         end
     else
@@ -132,9 +113,7 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
     turnOffNodes::Union{Int64, Array{Int,1}} = Int[], 
         turnOffKey = "",
     oddLevel::Bool = false, negativeOdd::Bool = false,
-    write::Bool = true, getData::Bool = false, maxNodes::Int = 100,
-    kdNodes::Array{Int, 1} = Int[], oeNodes::Array{Int, 1} = Int[],
-    deleteNodes::Array{Int, 1} = Int[])
+    write::Bool = true, getData::Bool = false, maxNodes::Int = 100)
     update_matrix,Nodes = topo2interaction(topoFile)
     nNodes = length(Nodes)
     finFlagFreqFinal_df_list_list = []
@@ -158,8 +137,7 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
                 nLevels = nLevels, vaibhav = vaibhav,
                 csb = csb, timeStep = timeStep, discreteState = discreteState,
                 nonMatrix = nonMatrix, turnOffNodes = turnOffNodes,
-                oddLevel = oddLevel, negativeOdd = negativeOdd, maxNodes = maxNodes,
-                kdNodes = kdNodes, oeNodes = oeNodes, deleteNodes = deleteNodes)
+                oddLevel = oddLevel, negativeOdd = negativeOdd, maxNodes = maxNodes)
             if states_df == 0
                 print("Too many nodes. Exiting.")
                 return
@@ -304,24 +282,10 @@ function bmodel_reps(topoFile::String; nInit::Int64=10000, nIter::Int64=1000,
         if nonMatrix
             rootName = join([rootName, "_nonMatrix"])
         end
-        if length(deleteNodes) > 0
-            rootName = join([rootName, "_del"])
-            deleteNodes = join(deleteNodes, "_")
-            rootName = join([rootName, "_", deleteNodes])
-        end
-        if length(kdNodes) > 0
-            rootName = join([rootName, "_kd"])
-            kdNodes = join(kdNodes, "_")
-            rootName = join([rootName, "_", kdNodes])
-        end
-        if length(oeNodes) > 0
-            rootName = join([rootName, "_oe"])
-            oeNodes = join(oeNodes, "_")
-            rootName = join([rootName, "_", oeNodes])
-        end
         finFlagFreqName = join([rootName, "_finFlagFreq.csv"])
         finFlagFreqFinal_df = sort(finFlagFreqFinal_df, order(:Avg0, rev = true))
         CSV.write(finFlagFreqName, finFlagFreqFinal_df)
+
 
         if init
             initFinFlagFreqName = join([rootName, "_initFinFlagFreq.csv"])

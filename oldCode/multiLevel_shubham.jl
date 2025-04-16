@@ -1,7 +1,5 @@
 function numChar(xnC, s0, levels, states, vaibhav)
-    if length(states) == 1
-        return(s0)
-    elseif xnC == 0
+    if xnC == 0
         if vaibhav
             return(0)
         else
@@ -68,16 +66,10 @@ function stateConvert(state, nLevels::Array{Int,1})
     return state
 end
 
-function getStateVec(nLevels::Int = 2, kd::Bool = false, oe::Bool = false)
-    if (kd)
-        return [-1.0]
-    elseif (oe)
-        return [1.0]
-    else
-        ls = collect(1:nLevels)
-        stateVec = float([-1*reverse(ls)/nLevels; ls/nLevels])
-        return stateVec
-    end
+function getStateVec(nLevels::Int = 2)
+    ls = collect(1:nLevels)
+    stateVec = float([-1*reverse(ls)/nLevels; ls/nLevels])
+    return stateVec
 end
 
 function getLevels(nLevels::Int = 2)
@@ -89,28 +81,14 @@ end
 #
 function shubhamBoolean(update_matrix::Array{Int,2},
     nInit::Int, nIter::Int; nLevels::Union{Int, Vector{Int}, String} = 2, 
-    vaibhav::Bool = false, turnOffNodes::Array{Int,1} = Int[],
-    kdNodes::Array{Int, 1} = Int[], oeNodes::Array{Int, 1} = Int[])
+    vaibhav::Bool = false, turnOffNodes::Array{Int,1} = Int[])
     n_nodes = size(update_matrix,1)
     if (nLevels isa Int)
         nLevels = [nLevels for i in 1:n_nodes]
     elseif (nLevels isa String)
         nLevels = [sum(update_matrix[i,:] .!= 0) + 1 for i in 1:n_nodes]
     end
-    
-    if (length(kdNodes) == 0)
-        kdNodesList = [false for i in 1:n_nodes]
-    else
-        kdNodesList = [ifelse(i in kdNodes, true, false) for i in 1:n_nodes]
-    end
-
-    if (length(oeNodes) == 0)
-        oeNodesList = [false for i in 1:n_nodes]
-    else
-        oeNodesList = [ifelse(i in oeNodes, true, false) for i in 1:n_nodes]
-    end
-
-    sVecList = [getStateVec(nLevels[i], kdNodesList[i], oeNodesList[i]) for i in 1:n_nodes]
+    sVecList = [getStateVec(nLevels[i]) for i in 1:n_nodes]
     initVec = []
     finVec = []
     flagVec = []
@@ -151,11 +129,6 @@ function shubhamBoolean(update_matrix::Array{Int,2},
         while j < nIter
             st = copy(state)
             u = uList[j]
-            if (kdNodesList[u] || oeNodesList[u])
-                j = j + 1
-                time = time + 1
-                continue
-            end
             prod = update_matrix2*st
             s1 = stateChar(prod, state, levels, states, vaibhav)
             if s1[u] != state[u]
