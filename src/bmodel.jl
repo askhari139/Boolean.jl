@@ -207,7 +207,6 @@ and aggregate steady-state statistics.
 ```julia
 bmodel_reps("my_network.topo", reps=5, types=[0,1], init=true, write=true)
 """
-
 function bmodel_reps(topoFile::String; nInit::Int=10_000, nIter::Int=1_000,
     mode::String="Async", stateRep::Int=-1, reps::Int=3, types::Vector{Int}=[0],
     init::Bool=false, randSim::Bool=false, root::String="", randVec::Vector{Float64}=[0.0],
