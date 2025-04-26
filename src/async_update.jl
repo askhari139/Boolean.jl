@@ -1,118 +1,161 @@
-#=
-Author : Kishore Hari
-function name : asyncUpdate
-Description : simulate a network using ising formalism for multiple random initial conditions
-Inputs :
-    update_matrix : 2-D array; adjecency matrix of the network. each ij element depicts the edge from node i to node j.
-    nInit : integer; number of initial conditions to use for simulation
-    nIter : integer; maximum number of time steps for simulation
-    
-Active outputs :
-    state_df : DataFrame; 3 columns - [init, fin, flag]:
-        init : string; Initial state
-        fin : string; Final state
-        flag : integer; 1 - fin is a steady state, 0 - not
-    Nodes : string array; List of nodes with the order in which state is listed
-Passive outputs :
-    The function writes states_df to a csv file if csv = true in input
-=#
+"""
+    asyncUpdate(update_matrix::Array{Int,2},
+                nInit::Int, nIter::Int, stateRep::Int, vaibhav::Bool, 
+                turnOffNodes::Array{Int,1}, 
+                kdNodes::Array{Int,1}, oeNodes::Array{Int,1})
+
+Perform asynchronous updates on a network based on the provided update matrix and settings.
+
+# Arguments
+- `update_matrix::Array{Int,2}`: The adjacency matrix of the network (values: -1, 0, 1).
+- `nInit::Int`: Number of initial random states to simulate.
+- `nIter::Int`: Maximum number of asynchronous updates per simulation.
+- `stateRep::Int`: Type of state representation (`0` for {0,1} states, else {-1,1} states).
+- `vaibhav::Bool`: Whether to "turn off" nodes dynamically (special rule handling).
+- `turnOffNodes::Array{Int,1}`: List of nodes to apply the Vaibhav turn-off rule.
+- `kdNodes::Array{Int,1}`: List of nodes forced into constant knockdown (-1 or 0 depending on `stateRep`).
+- `oeNodes::Array{Int,1}`: List of nodes forced into constant overexpression (+1).
+
+# Returns
+- `states_df::DataFrame`: A table containing the initial and final network states (`init`, `fin`) and a flag (`flag`) indicating convergence.
+- `frust_df::DataFrame`: A table containing each unique final state (`fin`), its network frustration score (`frust`), and the average time steps (`time`) taken to reach that state.
+
+# Notes
+- Asynchronous update: At each step, a random node is selected and updated.
+- Convergence is checked every 10 steps to reduce computational load.
+- Forced nodes (`kdNodes`, `oeNodes`) are never updated.
+- Frustration quantifies how "unsatisfied" the network is (lower is better).
+- Uses different conventions depending on `stateRep`:
+    - If `stateRep == 0`, a (0,1) binary system is used.
+    - Otherwise, a (-1,1) spin-like system is used.
+- Supports sparse optimization if the network is large and sparse.
+
+# Example
+```julia
+states_df, frust_df = asyncUpdate(update_mat, 100, 1000, 1, false, Int[], Int[], Int[])
+"""
 function asyncUpdate(update_matrix::Array{Int,2},
     nInit::Int, nIter::Int, stateRep::Int, vaibhav::Bool, 
     turnOffNodes::Array{Int,1}, 
-    kdNodes::Array{Int, 1}, oeNodes::Array{Int, 1}, 
-    deleteNodes::Array{Int, 1} = Int[])
+    kdNodes::Array{Int, 1}, oeNodes::Array{Int, 1})
+
     n_nodes = size(update_matrix,1)
-    stateVec = ifelse(stateRep == 0, [0,1], [-1,1])
-    initVec = []
-    finVec = []
-    flagVec = []
-    frustVec = []
-    timeVec = []
-    # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
+    density = sum(update_matrix .!= 0) / (n_nodes^2)
+
+    stateVec = stateRep == 0 ? [0, 1] : [-1, 1]
+
+    # Pre-allocate output vectors
+    initVec = Vector{String}(undef, nInit)
+    finVec = Vector{String}(undef, nInit)
+    flagVec = Vector{Int}(undef, nInit)
+    frustVec = Vector{Float64}(undef, nInit)
+    timeVec = Vector{Int}(undef, nInit)
+
+    # Handle "vaibhav" adjustment
     idMat = Matrix(I, n_nodes, n_nodes)
     if vaibhav
-        if length(turnOffNodes) == 0
-            turnOffNodes = 1:n_nodes
+        if isempty(turnOffNodes)
+            turnOffNodes = collect(1:n_nodes)
         end
         idMat[turnOffNodes, :] .= 0
     end
 
-    update_matrix2 = 2*update_matrix + idMat
-    update_matrix2 = sparse(update_matrix2')
-    updFunc = ifelse(stateRep == 0, zeroConv, signVec)
-    stateList = getindex.([rand(stateVec, nInit) for i in 1:n_nodes], (1:nInit)')
-    if (length(kdNodes) != 0)
-        stateList[kdNodes, :] .= stateVec[1]
+    # Preprocess update matrix
+    update_matrix2 = 2 * update_matrix + idMat
+    if n_nodes > 500 && density < 0.1
+        update_matrix2 = sparse(update_matrix2')
+    else
+        update_matrix2 = update_matrix2'
     end
-    if (length(oeNodes) != 0)
-        stateList[oeNodes, :] .= stateVec[2]
+
+    updFunc = stateRep == 0 ? zeroConv : signVec
+
+    # Initialize random states
+    stateMat = getindex.([rand(stateVec, nInit) for _ in 1:n_nodes], (1:nInit)')
+    if !isempty(kdNodes)
+        stateMat[kdNodes, :] .= stateVec[1]
     end
-    if (length(deleteNodes) != 0)
-        stateList[deleteNodes, :] .= 0
+    if !isempty(oeNodes)
+        stateMat[oeNodes, :] .= stateVec[2]
     end
+    stateList = [stateMat[:, i] for i in 1:nInit]
+
+    # Precompute nonzero structure for frustration calculation
+    nz_structure = findnz(sparse(update_matrix))
+
     @showprogress for i in 1:nInit
-        state = stateList[:,i] #pick random state
-        init = join(zeroConv(state), "_")
+        state = stateList[i]
+        init_state = zeroConv(state)
+        init = join(init_state, "_")
+
         flag = 0
         time = 1
         uList = rand(1:n_nodes, nIter)
+
         j = 1
         while j <= nIter
-            s1 = updFunc(update_matrix2*state)
+            s1 = updFunc(update_matrix2 * state)
             u = uList[j]
+
+            # Skip update if node is knocked down or overexpressed
             if u in kdNodes || u in oeNodes
-                j = j + 1
-                time = time + 1
+                j += 1
+                time += 1
                 continue
             end
+
+            # Perform update if necessary
             if s1[u] != state[u]
-                j = j + 1
-                time = time + 1
                 state[u] = s1[u]
+                j += 1
+                time += 1
                 continue
             end
+
+            # Otherwise, wait for change or convergence
             while s1[u] == state[u]
-                if iszero(j%10) # check after every ten steps,hopefully reduce the time
-                    if s1 == state
-                        flag = 1
-                        break
-                    end
+                if iszero(j % 10) && s1 == state
+                    flag = 1
+                    break
                 end
-                j = j + 1
-                time = time + 1
+                j += 1
+                time += 1
                 if j > nIter
                     break
                 end
                 u = uList[j]
             end
+
             if flag == 1
                 break
             end
             state[u] = s1[u]
         end
-        if stateRep == 0
-            fr = frustration(state, findnz(sparse(update_matrix)); negConv = true)
-        else
-            fr = frustration(state, findnz(sparse(update_matrix)))
-        end
-        fin = join(zeroConv(state), "_")
-        push!(frustVec, fr)
-        push!(initVec, init)
-        push!(finVec, fin)
-        push!(flagVec, flag)
-        push!(timeVec, time)       
-        # push!(states_df, (init, fin, flag))
+
+        # Calculate frustration
+        fr = stateRep == 0 ? frustration(state, nz_structure; negConv = true) : frustration(state, nz_structure)
+
+        fin_state = zeroConv(state)
+        fin = join(fin_state, "_")
+
+        initVec[i] = init
+        finVec[i] = fin
+        flagVec[i] = flag
+        frustVec[i] = fr
+        timeVec[i] = time
     end
-    states_df = DataFrame(init=initVec, 
-            fin = finVec, flag = flagVec)
-    frust_df = DataFrame(fin = finVec, 
-        frust = frustVec)
+
+    # Prepare output dataframes
+    states_df = DataFrame(init=initVec, fin=finVec, flag=flagVec)
+    frust_df = DataFrame(fin=finVec, frust=frustVec)
     frust_df = unique(frust_df, :fin)
-    timeData = DataFrame(fin = finVec, time = timeVec)
+
+    timeData = DataFrame(fin=finVec, time=timeVec)
     timeData = groupby(timeData, :fin)
-    timeData = combine(timeData, :time => avg, renamecols = false)
-    frust_df = innerjoin(frust_df, timeData, on = :fin)
-    # print(frust_df)
+    timeData = combine(timeData, :time => avg, renamecols=false)
+
+    frust_df = innerjoin(frust_df, timeData, on=:fin)
+
     return states_df, frust_df
 end
 
@@ -287,66 +330,4 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     return stateMatrix, sListUnique
 end
 
-function asyncOEDE(update_matrix::Array{Int,2},
-    nInit::Int, nIter::Int, OEID::Union{Int,Array{Int,1}}=[], 
-    DEID::Union{Int, Array{Int,1}}=[])
-    n_nodes = size(update_matrix,1)
-    if length(OEID) != 0
-        update_matrix[:,OEID] = repeat([0], n_nodes, length(OEID))
-    end
-    if length(DEID) != 0
-        update_matrix[:,DEID] = repeat([0], n_nodes, length(OEID))
-    end
-    stateVec = Int[-1,1]
-    initVec = []
-    finVec = []
-    flagVec = []
-    frustVec = []
-    timeVec = []
-    # states_df = DataFrame(init = String[], fin = String[], flag = Int[])
-    update_matrix2 = 2*update_matrix + Matrix(I, n_nodes, n_nodes)
-    update_matrix2 = sparse(update_matrix2')
-    for i in 1:nInit
-        state = rand(stateVec, n_nodes) #pick random state
-        if length(OEID) != 0
-            state[OEID] = 1
-        end
-        if length(DEID) != 0
-            state[DEID] = -1
-        end
-        init = join(["'", join(replace(x -> x == -1 ? 0 : x, state)), "'"])
-        flag = 0
-        for j in 1:nIter
-            time = time + 1
-            s1 = sign.(update_matrix2*state)
-            u = rand(1:n_nodes, 1)
-            if iszero(j%2) # check after every two steps,hopefully reduce the time
-                if s1 == state
-                    flag = 1
-                    break
-                end
-            end
-            state[u] = s1[u]
-        end
-        fr = frustration(state, findnz(sparse(update_matrix)))
-        fin = join(["'", join(replace(x -> x == -1 ? 0 : x, state)), "'"])
-        push!(frustVec, fr)
-        push!(initVec, init)
-        push!(finVec, fin)
-        push!(flagVec, flag)       
-        push!(timeVec, time)
-        # push!(states_df, (init, fin, flag))
-    end
-    states_df = DataFrame(init=initVec, 
-            fin = finVec, flag = flagVec)
-    frust_df = DataFrame(fin = finVec, 
-        frust = frustVec)
-    frust_df = unique(frust_df, :fin)
-    timeData = DataFrame(fin = finVec, time = timeVec)
-    timeData = groupby(timeData, :fin)
-    timeData = combine(timeData, :time => avg, renamecols = false)
-    frust_df = innerjoin(frust_df, timeData, on = :fin)
-    return states_df, frust_df
-
-end
 

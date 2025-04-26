@@ -16,7 +16,4 @@ miR141
 miR200a
 miR200b
 miR200c
-miR205
-miR30c
 miR34a
-miR9
