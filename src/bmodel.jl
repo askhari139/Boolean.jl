@@ -114,32 +114,99 @@ function bmodel(topoFile::String; nInit::Int=10_000, nIter::Int=1_000,
 end
 
 """
-function name : bmodel_reps
-Inputs :
-    topoFile : string; path to the topo file for the network
-    nInit : integer; number of initial conditions to use for simulation
-    nIter : integer; maximum number of time steps for simulation
-    mode : string; ['Async', 'Sync']; mode of update
-    stateRep : integer; whether to use -1 or 0 to represent low-expression
-    reps : integer; number of replicates 
-    csv : boolean; whether to write the output table of the function bmodel into csv
-    types : integer array; subset of [0, 1, 2]; the forms of update rule to be used. 0 is equal weightage, 1 is activation dominant and 2 is inhibition dominant
-    init : bool; Whether or not to include the initial conditions in the output. 
-        If checked true, output will contain the frequency of all unique initial condition-steady state pair. For asynchronous boolean, this increases the table size by a lot
-Active outputs :
-    finFreqFinal_df : DataFrame; [states, Avg0, SD0, frust0,...]:
-        states : string; Steady states
-        Avg0 : float; Mean frequency (from 'reps' replicates) of the steady states obtained using rule 0
-        SD0 : float; Standard deviation of the frequency
-        frust0 : float; Frustration of the steady state
-        Similarly we have Avg1, SD1, frust1, Avg2, SD2 and frust 2 depending upon the types argument for the function
-    finFlagFreqFinal_df : DataFrame; [states, flag, Avg0,...]
-        flag : integer; 1 - states is a steady state, 0 - not
-    initFinFlagFreqFinal_df : DataFrame; [init, states, flag, Avg0,...]
-        init : string; initial state
-Passive outputs :
-    The function writes finFreqFinal_df, finFlagFreqFinal_df, initFinFlagFreqFinal_df to files.
-"""
+    bmodel_reps(topoFile::String; nInit=10_000, nIter=1_000, mode="Async", 
+                stateRep=-1, reps=3, types=[0], init=false, randSim=false, 
+                root="", randVec=[0.0], shubham=false, nLevels=2, vaibhav=false, 
+                csb=false, timeStep=0.1, discreteState=false, nonMatrix=false, 
+                turnOffNodes=Int[], turnOffKey="", oddLevel=false, 
+                negativeOdd=false, write=true, getData=false, 
+                maxNodes=100, kdNodes=Int[], oeNodes=Int[], deleteNodes=Int[])
+
+Simulate a Boolean or discrete-state network multiple times with different update rules 
+and aggregate steady-state statistics.
+
+# Arguments
+- `topoFile::String`:  
+    Path to the topology file describing the network (as edge list or adjacency info).
+
+# Keyword Arguments
+- `nInit::Int=10_000`:  
+    Number of initial conditions to simulate per replicate.
+- `nIter::Int=1_000`:  
+    Maximum number of time steps per simulation.
+- `mode::String="Async"`:  
+    Update mode. Supported: `"Async"`, `"Sync"`, etc.
+- `stateRep::Int=-1`:  
+    Value representing low-expression state (`-1` or `0`).
+- `reps::Int=3`:  
+    Number of replicates per update rule.
+- `types::Vector{Int}=[0]`:  
+    List of rule types to simulate.  
+    - `0`: Equal weightage  
+    - `1`: Activation-dominant  
+    - `2`: Inhibition-dominant
+- `init::Bool=false`:  
+    Whether to track initial states along with steady states.
+- `randSim::Bool=false`:  
+    Use randomized update rules.
+- `root::String=""`:  
+    Prefix for naming output files.
+- `randVec::Vector{Float64}=[0.0]`:  
+    Probabilities used for randomized updates if `randSim=true`.
+- `shubham::Bool=false`:  
+    Use alternate update function (`shubhamBoolean`).
+- `nLevels::Union{Int, Vector{Int}, String}=2`:  
+    Number of expression levels per node. `0` uses Boolean dynamics.
+- `vaibhav::Bool=false`:  
+    Enable turning off nodes at runtime.
+- `csb::Bool=false`:  
+    Use CSB-like continuous-state updates.
+- `timeStep::Float64=0.1`:  
+    Timestep for continuous updates if `csb=true`.
+- `discreteState::Bool=false`:  
+    Force states to stay discrete even during continuous dynamics.
+- `nonMatrix::Bool=false`:  
+    Whether to use non-matrix implementations for efficiency.
+- `turnOffNodes::Union{Int, Vector{Int}}=Int[]`:  
+    Nodes to forcibly turn off during simulations.
+- `turnOffKey::String=""`:  
+    Label for turn-off nodes in filenames.
+- `oddLevel::Bool=false`:  
+    Simulate systems with odd-level multi-valued states.
+- `negativeOdd::Bool=false`:  
+    Allow negative states in odd-level simulations.
+- `write::Bool=true`:  
+    Whether to save output CSV files.
+- `getData::Bool=false`:  
+    Whether to return the aggregated `DataFrame`s from the function.
+- `maxNodes::Int=100`:  
+    Maximum number of nodes allowed (for memory safety).
+- `kdNodes::Vector{Int}=Int[]`:  
+    List of nodes to knock down (force low).
+- `oeNodes::Vector{Int}=Int[]`:  
+    List of nodes to overexpress (force high).
+- `deleteNodes::Vector{Int}=Int[]`:  
+    List of nodes to delete from the network before simulation.
+
+# Outputs
+- If `getData=true`:
+  - `finFlagFreqFinal_df::DataFrame`:  
+    Aggregated steady-state frequencies and frustration per type.
+  - Optionally, if `init=true`:  
+    `initFinFlagFreqFinal_df::DataFrame` with initial state - final state mappings.
+- If `write=true`:
+  - CSV files are saved for both `finFlagFreqFinal_df` and `initFinFlagFreqFinal_df` (if applicable).
+
+# Notes
+- `shubham`, `csb`, `oddLevel`, and `randSim` enable different kinds of dynamics.
+- Tracking initial conditions (`init=true`) significantly increases output size for asynchronous updates.
+- `turnOffNodes`, `kdNodes`, `oeNodes`, and `deleteNodes` allow flexible interventions during simulation.
+- Works for Boolean networks and easily extends to multi-level discrete networks (`nLevels`).
+
+# Example
+```julia
+bmodel_reps("my_network.topo", reps=5, types=[0,1], init=true, write=true)
+
 
 function bmodel_reps(topoFile::String; nInit::Int=10_000, nIter::Int=1_000,
     mode::String="Async", stateRep::Int=-1, reps::Int=3, types::Vector{Int}=[0],
