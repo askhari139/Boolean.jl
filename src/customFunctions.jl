@@ -241,3 +241,117 @@ function scanNodeTurnOff(topoFile::String; nInit::Int64=10000, nIter::Int64=1000
         end
     end
 end
+
+"""
+    simulate_network_folder(folder::String; 
+                            reps::Int=10, 
+                            output_csv::String="results.csv", 
+                            parallel::Bool=false,
+                            # text_to_BN parameters
+                            separator_var_func::String="=", 
+                            original_not::String="NOT", 
+                            original_and::String="AND", 
+                            original_or::String="OR", 
+                            new_not::String=" not ", 
+                            new_and::String=" and ", 
+                            new_or::String=" or ", 
+                            max_degree::Int=15, 
+                            TREATMENT_OF_CONSTANTS::Int=1, 
+                            max_N::Int=10000,
+                            # num_of_steady_states_asynchronous parameters
+                            max_iterations::Int=200, 
+                            nstarts::Int=100, 
+                            cutoff::Int=10, 
+                            report_freq::Int=0, 
+                            sample_frac::Float64=1.0, 
+                            seed::Union{Int,Nothing}=nothing)
+
+Simulates all Boolean networks in the specified folder. Each network is simulated `reps` times.
+
+# Arguments
+- `folder`: Folder path containing text-based Boolean network definitions.
+- `reps`: Number of repetitions per network (default 10).
+- `output_csv`: Output CSV file path (default "results.csv").
+- `parallel`: If true, enables multithreaded execution across networks.
+- `text_to_BN` arguments: Customize Boolean logic parsing and constants treatment.
+- `num_of_steady_states_asynchronous` arguments: Customize convergence behavior and initial condition sampling.
+
+# Output CSV columns
+- `File`: Network filename.
+- `State`: Unique steady state (as a string).
+- `Frequency`: Average basin size (fraction of ICs converging to that state).
+- `Time`: Average convergence time.
+- `Flag`: 1 if valid steady state.
+- `Frustration`: Network frustration score.
+
+"""
+function simulate_network_logical(rules::String; 
+    folder::String=".",
+    reps::Int=3, 
+    # text_to_BN args
+    max_N::Int=10000,
+    # num_of_steady_states_asynchronous args
+    nIter::Int=1000, 
+    nInit::Int=10000, 
+    seed::Union{Int,Nothing}=-1
+)
+    
+    dataFile = replace(rules, ".txt" => ".json")
+    if (!isfile(joinpath(folder, dataFile)))
+        println("File $dataFile not found in folder $folder")
+        l = pyCheck()
+        if !l
+            println("Python modules not found. Please install them.")
+            return
+        else
+            logicRules.text_to_BN(rules)
+            logicRules.boolean_to_topo(rules)
+            if (!isfile(joinpath(folder, dataFile)))
+                println("Python script failed to create $dataFile.")
+                return
+            end
+        end
+    end
+    F, I, N, degree, variables, constants = load_bn_from_json(joinpath(folder, dataFile))
+    getFrust = true
+    topoFile = replace(rules, ".txt" => ".topo")
+    if !isfile(joinpath(folder, topoFile))
+        println("File $topoFile not found in folder $folder")
+        getFrust = false
+    end
+
+    if getFrust
+        update_matrix, Nodes = topo2interaction(topoFile)
+        nzID = findnz(sparse(update_matrix))
+    end
+
+    all_runs = Dict{String, Tuple{Int, Float64}}()
+    total_points = 0
+    dictF = Dict{Tuple{Int, Int}, Int}()
+    ssDfList = []
+    for _ in 1:reps
+        y = @elapsed ssDf, dictF = num_of_steady_states_asynchronous(F, I, N; 
+            nsim=nInit, search_depth=nIter, DEBUG = false, SEED=seed, dictF=dictF)
+        ssDfList = vcat(ssDfList, ssDf)
+    end
+    ssDf = reduce((x, y) -> outerjoin(x, y, on=[:steady_state, :flag], makeunique=true), ssDfList)
+    states = ssDf[!, :steady_state]
+    states = [dec2binvec(i, N) for i in states]
+    nodesLog = vcat(variables, constants)
+    p = [findfirst(==(x), nodesLog) for x in Nodes]
+    if getFrust
+        frust = [frustration(state[p], nzID; negConv = true) for state in states]
+    else
+        frust = [NaN for _ in states]
+    end
+    states = [join(state[p], "_") for state in states]
+    ssDf[!, :states] .= states
+    ssDf[!, :frust0] .= frust
+    ssDf = meanSD(ssDf, "basin_size"; avgKey=:Avg0, sdKey=:SD0)
+    ssDf = meanSD(ssDf, "time"; avgKey=:time, sdKey=:SDTime)
+    ssDf = select(ssDf, [:states, :flag, :Avg0, :SD0, :frust0, :time])
+    ssDf = sort(ssDf, order(:Avg0, rev=true))
+    outFile = replace(rules, ".txt" => "_finFlagFreq.csv")
+    CSV.write(joinpath(folder, outFile), ssDf)
+end
+

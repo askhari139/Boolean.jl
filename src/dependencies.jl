@@ -7,3 +7,6 @@ using Pipe
 using ProgressMeter
 using Base.Threads
 using Random
+using IterTools
+using Combinatorics
+using JSON

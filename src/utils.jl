@@ -41,6 +41,15 @@ function freqCalc(x::Array{String,1})
     df = DataFrame(d)
 end
 
+"""
+    bin2dec(bits::Vector{Int}) -> Int
+
+Converts a binary vector (e.g., [1, 0, 1]) to its decimal representation.
+"""
+function bin2dec(bits::Vector{Int})
+    return foldl((acc, b) -> 2 * acc + b, bits)
+end
+
 ## converts binary state (-1s) to decimal
 function stateToDec(state::Array{Int,1}, binVec::Array{Int,1})
     y = sum([(i != 1 && i != -1) for i in state])
@@ -49,12 +58,9 @@ function stateToDec(state::Array{Int,1}, binVec::Array{Int,1})
         return
     end
     state = replace(x -> x == -1 ? 0 : x, state)
-    if size(state) != size(binVec)
-        state = state'
-    end
-    s = sum(state.*binVec)
-    return s
+    return bin2dec(state)
 end
+
 
 ## calculates frustration of a state
 # function frustration(state::Array{Int,1}, 
@@ -155,14 +161,14 @@ function replaceMissing(x)
 end
 
 ## get mean and SD rowwise of columns containing a keyword in their name
-function meanSD(df::DataFrame, keyword::String)
+function meanSD(df::DataFrame, keyword::String; avgKey::Symbol = :Avg, sdKey::Symbol = :SD)
     cols = names(df)
     cols = cols[[occursin(keyword, i) for i in cols]]
     df_new = df[:, cols]
     d = @pipe df |>
         transform(_, cols .=> replaceMissing .=> cols) |>
-        transform(_, AsTable(cols) => ByRow(avg) => :Avg) |>
-        transform(_, AsTable(cols) => ByRow(SD) => :SD) |>
+        transform(_, AsTable(cols) => ByRow(avg) => avgKey) |>
+        transform(_, AsTable(cols) => ByRow(SD) => sdKey) |>
         select(_, Not(cols))
     return d
 end
@@ -263,4 +269,45 @@ function adjust_indices(indices, deleted)
     end
 
     return adjusted
+end
+
+
+
+function load_bn_from_json(filename::String)
+    data = JSON.parsefile(filename)
+
+    F = [Vector{Int}(row) for row in data["F"]]
+    I = [Vector{Int}(row) for row in data["I"]]
+    I = [i .+ 1 for i in I]  # Adjust indices to be 1-based
+    degree = Vector{Int}(data["degree"])
+    variables = Vector{String}(data["variables"])
+    constants = Vector{String}(data["constants"])
+
+    return F, I, length(F), degree, variables, constants
+end
+
+
+
+
+function dec2binvec(n, Nbits)
+    dig = reverse(digits(n, base=2, pad = Nbits))
+    return dig
+end
+
+function pyCheck()
+    modules = ["numpy", "random", "itertools", "json"]
+    counter = 0
+    for i in modules
+        try
+            pyimport(i)
+        catch e
+            println("Python module $i not found.")
+            counter +=1
+        end
+    end
+    if counter > 0
+        println("Please install the missing modules.")
+        return false
+    end
+    return true
 end
