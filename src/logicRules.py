@@ -165,7 +165,7 @@ def text_to_BN(textfile,separator_var_func="=",original_not="NOT",original_and="
     outputfile = textfile.replace('.txt','.json')
     with open(outputfile, 'w') as out:
         json.dump(result, out, indent=2)
-    return
+    return F, I, degree, var, constants
 
 
 def f_from_expression(expr):
@@ -226,10 +226,17 @@ def f_from_file(booleanRules, n_max = 100):
     if (len(fl) > n_max):
         return 0
     table = dict()
-    for line in fl:
-        line = line.split('=')
-        f,variables = f_from_expression(line[1])
-        table.update({line[0].strip():[f, variables]})
+    F, I, degree, var, constants = text_to_BN(booleanRules, max_N = n_max)
+    variables = var + constants
+    varList = []
+    for inputs in I:
+        varList.append([variables[i] for i in inputs])
+    for i in range(len(var)):
+        table.update({var[i]:[F[i], I[i]]})
+    # for line in fl:
+    #     line = line.split('=')
+    #     f,variables = f_from_expression(line[1])
+    #     table.update({line[0].strip():[f, variables]})
     return table
 
 def boolean_to_topo(BooleanRules, randomize=False, effectivity=False, n_max = 100):

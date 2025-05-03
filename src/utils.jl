@@ -2,13 +2,16 @@
 function topo2interaction(topoFile::String, type::Int=0)
     df = DataFrame(CSV.File(topoFile))
     dropmissing!(df)
-    Nodes = sort(unique(vcat(df.Source, df.Target)))
+    Nodes = sort(unique(vcat(df[:,1], df[:,2])))
     n_nodes = length(Nodes)
-    update_matrix = zeros(typeof(df.Type[1]), n_nodes, n_nodes)
+    types = sort(unique(df[:,3]))
+    if types === [1,2]
+        df[:,3] = replace(x -> x === 2 ? -1 : x, df[:,3])
+    elseif length(types) > 2 && typeof(df[1,3]) == Int
+        df[:, 3] = float(df[:, 3])
+    end
+    update_matrix = zeros(typeof(df[1,3]), n_nodes, n_nodes)
     for i in 1:size(df, 1)
-        if df[i, 3] == 2
-            df[i,3] = -1
-        end
         j = findfirst(x->x==df[i,1], Nodes)
         k = findfirst(x->x==df[i,2], Nodes)
         update_matrix[j,k] = df[i,3]
