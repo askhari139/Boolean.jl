@@ -120,7 +120,7 @@ end
 ## get frequency for select columns in a dataframe
 function dfFreq(state_df::DataFrame, cols::Array{Symbol, 1})
     df = @pipe state_df |>
-        groupby(_, cols) |>
+        DataFrames.groupby(_, cols) |>
         combine(_, nrow => :Count) |>
         transform(_, :Count => getFreq => :frequency) |>
         select(_, push!(cols, :frequency)) |>
@@ -130,7 +130,7 @@ end
 
 function dfFreqGen(state_df::DataFrame, cols::Array{Symbol, 1})
     df = @pipe state_df |>
-        groupby(_, cols) |>
+        DataFrames.groupby(_, cols) |>
         combine(_, nrow => :Count) |>
         transform(_, :Count => getFreq => :frequency) |>
         select(_, push!(cols, :frequency))
@@ -139,7 +139,7 @@ end
 
 function dfAvgGen(state_df::DataFrame, cols::Array{Symbol, 1}, meanCol::Array{Symbol, 1})
     df = @pipe state_df |>
-        groupby(_, cols) |>
+        DataFrames.groupby(_, cols) |>
         combine(_, meanCol .=> avg, renamecols = false) |>
         # transform(_, :Count => getFreq => :frequency) |>
         select(_, vcat(cols, meanCol))

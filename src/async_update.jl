@@ -151,10 +151,10 @@ function asyncUpdate(update_matrix::Array{Int,2},
     frust_df = unique(frust_df, :fin)
 
     timeData = DataFrame(fin=finVec, time=timeVec)
-    timeData = groupby(timeData, :fin)
-    timeData = combine(timeData, :time => avg, renamecols=false)
+    timeData = DataFrames.groupby(timeData, :fin)
+    timeData = DataFrames.combine(timeData, :time => avg, renamecols=false)
 
-    frust_df = innerjoin(frust_df, timeData, on=:fin)
+    frust_df = DataFrames.innerjoin(frust_df, timeData, on=:fin)
 
     return states_df, frust_df
 end
@@ -246,9 +246,9 @@ function asyncRandUpdate(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
         frust = frustVec)
     frust_df = unique(frust_df, :fin)
     timeData = DataFrame(fin = finVec, time = timeVec)
-    timeData = groupby(timeData, :fin)
-    timeData = combine(timeData, :time => avg, renamecols = false)
-    frust_df = innerjoin(frust_df, timeData, on = :fin)
+    timeData = DataFrames.groupby(timeData, :fin)
+    timeData = DataFrames.combine(timeData, :time => avg, renamecols = false)
+    frust_df = DataFrames.innerjoin(frust_df, timeData, on = :fin)
     return states_df, frust_df
 end
 
