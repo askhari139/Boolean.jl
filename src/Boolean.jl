@@ -9,11 +9,10 @@ using Pipe
 using ProgressMeter
 using Base.Threads
 using Random
-
 using Combinatorics
 using JSON
 using PyCall
-import IterTools : product
+import IterTools: product
 
 # include("dependencies.jl")
 include("utils.jl")
