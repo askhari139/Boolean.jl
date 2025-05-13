@@ -5,7 +5,7 @@ function topo2interaction(topoFile::String, type::Int=0)
     Nodes = sort(unique(vcat(df[:,1], df[:,2])))
     n_nodes = length(Nodes)
     types = sort(unique(df[:,3]))
-    if types === [1,2]
+    if types == [1,2]
         df[:,3] = replace(x -> x === 2 ? -1 : x, df[:,3])
     elseif length(types) > 2 && typeof(df[1,3]) == Int
         df[:, 3] = float(df[:, 3])
