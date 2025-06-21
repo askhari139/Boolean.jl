@@ -5,10 +5,10 @@ function topo2interaction(topoFile::String, type::Int=0)
     Nodes = sort(unique(vcat(df[:,1], df[:,2])))
     n_nodes = length(Nodes)
     types = sort(unique(df[:,3]))
-    if types == [1,2]
-        df[:,3] = replace(x -> x === 2 ? -1 : x, df[:,3])
-    elseif length(types) > 2 && typeof(df[1,3]) == Int
+    if (length(types) > 2 && typeof(df[1,3]) == Int) || typeof(df[1,3]) == Float64
         df[:, 3] = float(df[:, 3])
+    else
+        df[:,3] = replace(x -> x == 2 ? -1 : x, df[:,3])
     end
     update_matrix = zeros(typeof(df[1,3]), n_nodes, n_nodes)
     for i in 1:size(df, 1)
@@ -25,6 +25,7 @@ function topo2interaction(topoFile::String, type::Int=0)
     end
     return update_matrix,Nodes
 end
+
 
 ## create an exhaustive list of binary states of a given length
 function listStates(nStates::Int, stateVec)

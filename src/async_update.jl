@@ -183,7 +183,7 @@ function asyncRandUpdate(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     if typeof(update_matrix) == Array{Int, 2}
         nzId = enumerate(findall(update_matrix.!=0))
         if randVec == [0.0]
-            state_df, frust_df = asyncUpdate(update_matrix, nInit, nIter, stateRep)
+            state_df, frust_df = asyncUpdate(update_matrix, nInit, nIter, stateRep,false,[],[],[])
             return state_df, frust_df
         end
         update_matrix = float(update_matrix)
@@ -260,7 +260,7 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     n_nodes = size(update_matrix,1)
     if steadyStates
         updm = sign.(update_matrix)
-        states_df, frust_df = asyncUpdate(updm, 10000, 1000, stateRep)
+        states_df, frust_df = asyncUpdate(updm, 10000, 1000, stateRep,false,[],[],[])
         states = states_df[:, :fin]
         states = rand(states, nInit)
     end
