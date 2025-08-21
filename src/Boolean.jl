@@ -26,6 +26,7 @@ include("logicalRules.jl")
 include("logicalSim.jl")
 include("bmodel.jl")
 include("boolToTopo.jl")
+include("coherence.jl")
 
 
 # Determine the absolute path to the Python script's directory
@@ -44,6 +45,8 @@ export bmodel_reps,
     contWeightPert,
     getSSListRand,
     scanNodeTurnOff,
-    getNodes
+    getNodes,
+    coherence,
+    coherenceAllNode
 
 end # module Boolean

@@ -168,7 +168,8 @@ function shubhamBoolean(
     nLevels::Union{Int, Vector{Int}, String}, 
     vaibhav::Bool, 
     turnOffNodes::Array{Int,1},
-    kdNodes::Array{Int,1}, oeNodes::Array{Int,1}
+    kdNodes::Array{Int,1}, oeNodes::Array{Int,1};
+    stateList::Vector{Vector{Float64}} = Vector{Vector{Float64}}()
 )
     ### --- Preprocessing input arguments ---
     n_nodes = size(update_matrix, 1)
@@ -190,13 +191,6 @@ function shubhamBoolean(
     sVecList = [getStateVec(nLevels[i], kdNodesList[i], oeNodesList[i]) for i in 1:n_nodes]
     levels = [getLevels(nLevels[i]) for i in 1:n_nodes]
 
-    # Prepare outputs
-    initVec = Vector{String}(undef, nInit)
-    finVec = Vector{String}(undef, nInit)
-    flagVec = Vector{Int}(undef, nInit)
-    frustVec = Vector{Float64}(undef, nInit)
-    timeVec = Vector{Int}(undef, nInit)
-
     # Prepare update matrix
     updOriginal = copy(update_matrix)
     update_matrix = float.(update_matrix)
@@ -209,8 +203,18 @@ function shubhamBoolean(
 
     ### --- Simulation Loop ---
     # Initialize random initial states
-    stateList = getindex.([rand(sVecList[i], nInit) for i in 1:n_nodes], (1:nInit)')
-    stateList = [stateList[:, i] for i in 1:nInit]
+    if (length(stateList) == 0)
+        stateList = getindex.([rand(sVecList[i], nInit) for i in 1:n_nodes], (1:nInit)')
+        stateList = [stateList[:, i] for i in 1:nInit]
+    end
+    nInit = length(stateList)
+
+        # Prepare outputs
+    initVec = Vector{String}(undef, nInit)
+    finVec = Vector{String}(undef, nInit)
+    flagVec = Vector{Int}(undef, nInit)
+    frustVec = Vector{Float64}(undef, nInit)
+    timeVec = Vector{Int}(undef, nInit)
 
     @inbounds for i in 1:nInit
         state = stateList[i]

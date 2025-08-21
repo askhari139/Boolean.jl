@@ -37,19 +37,14 @@ states_df, frust_df = asyncUpdate(update_mat, 100, 1000, 1, false, Int[], Int[],
 function asyncUpdate(update_matrix::Array{Int,2},
     nInit::Int, nIter::Int, stateRep::Int, vaibhav::Bool, 
     turnOffNodes::Array{Int,1}, 
-    kdNodes::Array{Int, 1}, oeNodes::Array{Int, 1})
+    kdNodes::Array{Int, 1}, oeNodes::Array{Int, 1};
+    stateList::Vector{Vector{Int}} = Vector{Vector{Int}}()
+    )
 
     n_nodes = size(update_matrix,1)
     density = sum(update_matrix .!= 0) / (n_nodes^2)
 
     stateVec = stateRep == 0 ? [0, 1] : [-1, 1]
-
-    # Pre-allocate output vectors
-    initVec = Vector{String}(undef, nInit)
-    finVec = Vector{String}(undef, nInit)
-    flagVec = Vector{Int}(undef, nInit)
-    frustVec = Vector{Float64}(undef, nInit)
-    timeVec = Vector{Int}(undef, nInit)
 
     # Handle "vaibhav" adjustment
     idMat = Matrix(I, n_nodes, n_nodes)
@@ -71,15 +66,23 @@ function asyncUpdate(update_matrix::Array{Int,2},
     updFunc = stateRep == 0 ? zeroConv : signVec
 
     # Initialize random states
-    stateMat = getindex.([rand(stateVec, nInit) for _ in 1:n_nodes], (1:nInit)')
-    if !isempty(kdNodes)
-        stateMat[kdNodes, :] .= stateVec[1]
+    if (length(stateList) == 0)
+        stateMat = getindex.([rand(stateVec, nInit) for _ in 1:n_nodes], (1:nInit)')
+        if !isempty(kdNodes)
+            stateMat[kdNodes, :] .= stateVec[1]
+        end
+        if !isempty(oeNodes)
+            stateMat[oeNodes, :] .= stateVec[2]
+        end
+        stateList = [stateMat[:, i] for i in 1:nInit]
     end
-    if !isempty(oeNodes)
-        stateMat[oeNodes, :] .= stateVec[2]
-    end
-    stateList = [stateMat[:, i] for i in 1:nInit]
-
+    nInit = length(stateList)
+        # Pre-allocate output vectors
+    initVec = Vector{String}(undef, nInit)
+    finVec = Vector{String}(undef, nInit)
+    flagVec = Vector{Int}(undef, nInit)
+    frustVec = Vector{Float64}(undef, nInit)
+    timeVec = Vector{Int}(undef, nInit)
     # Precompute nonzero structure for frustration calculation
     nz_structure = findnz(sparse(update_matrix))
 
@@ -87,7 +90,6 @@ function asyncUpdate(update_matrix::Array{Int,2},
         state = stateList[i]
         init_state = zeroConv(state)
         init = join(init_state, "_")
-
         flag = 0
         time = 1
         uList = rand(1:n_nodes, nIter)
@@ -329,5 +331,3 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     end
     return stateMatrix, sListUnique
 end
-
-
