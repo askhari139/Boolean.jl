@@ -112,9 +112,9 @@ function coherenceAllNode(topoFile::String; nIter::Int=1000,
     df.hamming = hamming_str.(df.init, df.fin)
     df1 = df |> 
         x -> begin
-        # Convert to Int and replace missing with 0
+        # Convert to Int/float and replace missing with 0
             x.returned = Int.(coalesce.(x.returned, 0))
-            x.hamming = Int.(coalesce.(x.hamming, 0))
+            x.hamming = float.(coalesce.(x.hamming, 0))
             x
         end |>
         x -> groupby(x, [:init, :nPert]) |>
