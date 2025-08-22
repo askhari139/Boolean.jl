@@ -98,7 +98,7 @@ function coherence(topoFile::String; nIter::Int=1000,
         return collectionLarge
     end
 end
-hamming_str(s1, s2) = sum(parse.(Int, split(s1, "_")) .!= parse.(Int, split(s2, "_")))
+hamming_str(s1, s2) = sum(parse.(Int, split(s1, "_")) .!= parse.(Int, split(s2, "_")))/length(split(s1, "_"))
 
 function coherenceAllNode(topoFile::String; nIter::Int=1000, 
     nInit::Int=100, nSim::Int=10, nLevels::Int=1, 
