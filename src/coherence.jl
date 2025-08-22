@@ -56,6 +56,8 @@ function coherenceIter(update_matrix,
     return state_df
 end
 
+hamming_str(s1, s2) = sum(parse.(Int, split(s1, "_")) .!= parse.(Int, split(s2, "_")))/length(split(s1, "_"))
+
 function coherence(topoFile::String; nIter::Int=1000, 
     nPert::Int=1, nInit::Int=100, nSim::Int=10, nLevels::Int=1, 
     rowz::Vector{Int} = Vector{Int}(), returnDf = false)
@@ -90,6 +92,8 @@ function coherence(topoFile::String; nIter::Int=1000,
     end
 
     collectionLarge.nPert = fill(nPert, size(collectionLarge, 1))
+    collectionLarge.returned = Int.(collectionLarge.init .== collectionLarge.fin)
+    collectionLarge.hamming = hamming_str.(collectionLarge.init, collectionLarge.fin)
     nm = join(["_nPert_", string(nPert), 
         "_nLevs_", string(nLevels) , "_coherence.csv"])
     rootName = replace(topoFile, ".topo" => nm)
@@ -98,18 +102,17 @@ function coherence(topoFile::String; nIter::Int=1000,
         return collectionLarge
     end
 end
-hamming_str(s1, s2) = sum(parse.(Int, split(s1, "_")) .!= parse.(Int, split(s2, "_")))/length(split(s1, "_"))
+
 
 function coherenceAllNode(topoFile::String; nIter::Int=1000, 
     nInit::Int=100, nSim::Int=10, nLevels::Int=1, 
     rowz::Vector{Int} = Vector{Int}())
     update_matrix,Nodes = topo2interaction(topoFile)
     n_nodes = length(Nodes)
-    dfList = [coherence(topoFile; nIter = nIter, nPert = i, nInit = nInit, nSim = nSim,
+    dfList = [coherence(topoFile; nIter = nIter, nPert = i, 
+        nInit = nInit, nSim = nSim,
             nLevels = nLevels, rowz = rowz, returnDf = true) for i in 1:n_nodes]
     df = vcat(dfList...)
-    df.returned = Int.(df.init .== df.fin)
-    df.hamming = hamming_str.(df.init, df.fin)
     df1 = df |> 
         x -> begin
         # Convert to Int/float and replace missing with 0
