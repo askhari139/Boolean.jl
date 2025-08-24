@@ -104,10 +104,13 @@ Converts a continuous state vector to a discrete string representation using a s
 Returns a string like `'2_3_1'`.
 """
 function stateConvert(state::AbstractVector, nLevels::Int)
+    if (nLevels == 0)
+        nLevels = 1
+    end
     scaled = Int.(nLevels .* state)
     converted = replace(x -> x < 0 ? x + nLevels : x + nLevels - 1, scaled)
     converted = [scaled[i] == 0 ? 2 * nLevels : converted[i] for i in eachindex(scaled)]
-    return join(["'", join(converted, "_"), "'"])
+    return join(converted, "_")
 end
 
 

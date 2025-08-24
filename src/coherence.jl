@@ -12,6 +12,8 @@ function charToState(state, nLevels)
     return [stVec[i + 1] for i in state]
 end
 
+
+
 function asyncInit(update_matrix2,
     nIter::Int, state::Array{Int,1})
     # state = rand(stateVec, n_nodes) #pick random state
@@ -36,25 +38,33 @@ function coherenceIter(update_matrix,
     nIter::Int, state::Union{Vector{Int}, Vector{Float64}},
     pertNodes::Union{Int, Array{Int,1}}, 
     nSim::Int, nLevels::Int)
-    init = copy(state)
-    state[pertNodes] = -1*sign.(state[pertNodes])
-    stateList = [state for i in 1:nSim]
-    stateList = vcat([init], stateList)
+
+    # Work with a copy so we don’t mutate the input state
+    local_state = copy(state)
+
+    stInit = stateConvert(local_state, nLevels)
+
+    # Apply perturbation on the copy
+    local_state[pertNodes] = -1 * sign.(local_state[pertNodes])
+
+    # Make nSim independent copies
+    stateList = [deepcopy(local_state) for _ in 1:nSim]
+
     if (nLevels == 0)
         state_df, frust_df = asyncUpdate(update_matrix, 0, nIter, -1, false, Int[], Int[], Int[]; stateList = stateList)
     else 
         state_df, frust_df = shubhamBoolean(update_matrix, 0, nIter, nLevels, false, Int[], Int[], Int[]; stateList = stateList)
     end
-    stInit = state_df[1,1]
-    state_df = state_df[2:end,:]
-    # frust_df = frust_df[2:end, :]
+
     state_df = state_df |>
         x -> rename!(x, :init => :pert) |>
-        x -> insertcols!(x, :init => [stInit for i in 1:size(state_df, 1)]) |>
+        x -> insertcols!(x, :init => fill(stInit, size(state_df, 1))) |>
         x -> select!(x, [:init, :pert, :fin, :flag]) |>
         x -> leftjoin(x, frust_df, on = :fin)
+
     return state_df
 end
+
 
 hamming_str(s1, s2) = sum(parse.(Int, split(s1, "_")) .!= parse.(Int, split(s2, "_")))/length(split(s1, "_"))
 
@@ -69,11 +79,12 @@ function coherence(topoFile::String; nIter::Int=1000,
         key = "_shubham_"*string(nLevels)*"_finFlagFreq.csv"
     end
     fileName = replace(topoFile, ".topo" => key)
-    states = CSV.read(fileName, DataFrame) 
-    states = states[:, :states]
-    rowz = filter(x -> x < length(states), rowz)
-    states = states[rowz]
-    states = [charToState(st, nLevels) for st in states]
+    stateD = CSV.read(fileName, DataFrame) 
+    statez = stateD.states
+    rowz = filter(x -> x < length(statez), rowz)
+    statez = statez[rowz]
+    statez = [charToState(st, nLevels) for st in statez]
+    k = hash.(statez)
     b = binomial(n_nodes, nPert)
     if b < 2*nInit
         nInit = min(nInit, b)
@@ -83,14 +94,18 @@ function coherence(topoFile::String; nIter::Int=1000,
         choice = reshape(rand(1:n_nodes, nPert*nInit), nInit, nPert)
     end
     collectionLarge = DataFrame(init=String[], pert = String[], fin=String[], flag=Int[], frust=Float64[], time = Float64[])
-    for st in states
+    for st in statez
         for i in 1:nInit
+            sTest = stateConvert(st, nLevels)
+            # println(sTest)
             pertNodes = choice[i,:]
-            collectionLarge = vcat(collectionLarge, 
-                coherenceIter(update_matrix, nIter, st, pertNodes, nSim, nLevels))
+            # println("Before: ", hash.(statez))
+            v1 = coherenceIter(update_matrix, nIter, st, pertNodes, nSim, nLevels)
+            # println("After: ", hash.(statez))
+            collectionLarge = vcat(collectionLarge, v1)
         end
     end
-
+    length(unique(collectionLarge.init))
     collectionLarge.nPert = fill(nPert, size(collectionLarge, 1))
     collectionLarge.returned = Int.(collectionLarge.init .== collectionLarge.fin)
     collectionLarge.hamming = hamming_str.(collectionLarge.init, collectionLarge.fin)
