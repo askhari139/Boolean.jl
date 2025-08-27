@@ -142,7 +142,7 @@ function simulate_async!(
         end
     end
     times = collect(0:(length(stateList)-1)) .* record_every
-    return stateList, times
+    return [s ./ n for s in stateList], times
 end
 
 # ============================

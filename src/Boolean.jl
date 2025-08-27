@@ -49,6 +49,8 @@ export bmodel_reps,
     scanNodeTurnOff,
     getNodes,
     coherence,
-    coherenceAllNode
+    coherenceAllNode,
+    simulate_async,
+    simulate_multiple_states_to_df
 
 end # module Boolean
