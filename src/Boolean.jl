@@ -13,6 +13,7 @@ using Combinatorics
 using JSON
 using PyCall
 import IterTools: product
+# using Plots
 
 # include("dependencies.jl")
 include("utils.jl")
@@ -27,6 +28,7 @@ include("logicalSim.jl")
 include("bmodel.jl")
 include("boolToTopo.jl")
 include("coherence.jl")
+include("stochasticSim.jl")
 
 
 # Determine the absolute path to the Python script's directory

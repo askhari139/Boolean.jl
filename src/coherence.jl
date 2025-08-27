@@ -12,7 +12,9 @@ function charToState(state, nLevels)
     return [stVec[i + 1] for i in state]
 end
 
+hamming_str(s1, s2) = sum(parse.(Int, split(s1, "_")) .!= parse.(Int, split(s2, "_")))/length(split(s1, "_"))
 
+mirror(s1, nLevs) = join((2*nLevs - 1) .- parse.(Int, split(s1, "_")), "_")
 
 function asyncInit(update_matrix2,
     nIter::Int, state::Array{Int,1})
@@ -37,7 +39,7 @@ end
 function coherenceIter(update_matrix,
     nIter::Int, state::Union{Vector{Int}, Vector{Float64}},
     pertNodes::Union{Int, Array{Int,1}}, 
-    nSim::Int, nLevels::Int)
+    nSim::Int, nLevels::Int, holdPert::Bool)
 
     # Work with a copy so we don’t mutate the input state
     local_state = copy(state)
@@ -46,14 +48,25 @@ function coherenceIter(update_matrix,
 
     # Apply perturbation on the copy
     local_state[pertNodes] = -1 * sign.(local_state[pertNodes])
+    kdNodes = Int[]
+    oeNodes = Int[]
+    if holdPert
+        for i in pertNodes
+            if (local_state[i] < 0)
+                append!(kdNodes, i)
+            else
+                append!(oeNodes, i)
+            end
+        end
+    end
 
     # Make nSim independent copies
     stateList = [deepcopy(local_state) for _ in 1:nSim]
 
     if (nLevels == 0)
-        state_df, frust_df = asyncUpdate(update_matrix, 0, nIter, -1, false, Int[], Int[], Int[]; stateList = stateList)
+        state_df, frust_df = asyncUpdate(update_matrix, 0, nIter, -1, false, Int[], kdNodes, oeNodes; stateList = stateList)
     else 
-        state_df, frust_df = shubhamBoolean(update_matrix, 0, nIter, nLevels, false, Int[], Int[], Int[]; stateList = stateList)
+        state_df, frust_df = shubhamBoolean(update_matrix, 0, nIter, nLevels, false, Int[], kdNodes, oeNodes; stateList = stateList)
     end
 
     state_df = state_df |>
@@ -66,11 +79,10 @@ function coherenceIter(update_matrix,
 end
 
 
-hamming_str(s1, s2) = sum(parse.(Int, split(s1, "_")) .!= parse.(Int, split(s2, "_")))/length(split(s1, "_"))
-
 function coherence(topoFile::String; nIter::Int=1000, 
     nPert::Int=1, nInit::Int=100, nSim::Int=10, nLevels::Int=1, 
-    rowz::Vector{Int} = Vector{Int}(), returnDf = false)
+    rowz::Vector{Int} = Vector{Int}(), returnDf = false, 
+    holdPert = false)
     update_matrix,Nodes = topo2interaction(topoFile)
     n_nodes = length(Nodes)
     if (nLevels == 0)
@@ -100,7 +112,7 @@ function coherence(topoFile::String; nIter::Int=1000,
             # println(sTest)
             pertNodes = choice[i,:]
             # println("Before: ", hash.(statez))
-            v1 = coherenceIter(update_matrix, nIter, st, pertNodes, nSim, nLevels)
+            v1 = coherenceIter(update_matrix, nIter, st, pertNodes, nSim, nLevels, holdPert)
             # println("After: ", hash.(statez))
             collectionLarge = vcat(collectionLarge, v1)
         end
@@ -109,6 +121,8 @@ function coherence(topoFile::String; nIter::Int=1000,
     collectionLarge.nPert = fill(nPert, size(collectionLarge, 1))
     collectionLarge.returned = Int.(collectionLarge.init .== collectionLarge.fin)
     collectionLarge.hamming = hamming_str.(collectionLarge.init, collectionLarge.fin)
+    collectionLarge.mirrorSt = mirror.(collectionLarge.init, nLevels)
+    collectionLarge.isMirror = Int.(collectionLarge.init .== collectionLarge.mirrorSt)
     nm = join(["_nPert_", string(nPert), 
         "_nLevs_", string(nLevels) , "_coherence.csv"])
     rootName = replace(topoFile, ".topo" => nm)
