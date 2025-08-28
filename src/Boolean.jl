@@ -11,7 +11,7 @@ using Base.Threads
 using Random
 using Combinatorics
 using JSON
-using PyCall
+# using PyCall
 import IterTools: product
 # using Plots
 
@@ -35,10 +35,10 @@ include("stochasticSim.jl")
 script_dir = joinpath(@__DIR__)  # @__DIR__ gives path to the current file (src/)
 
 # Add that directory to Python's import path
-push!(PyVector(pyimport("sys")."path"), "/Users/kishorehari/Desktop/Boolean.jl/src")
+# push!(PyVector(pyimport("sys")."path"), "/Users/kishorehari/Desktop/Boolean.jl/src")
 
 # Import your script (assumes it's named `script.py`)
-logicRules = pyimport("logicRules")
+# logicRules = pyimport("logicRules")
 
 
 export bmodel_reps,
