@@ -130,6 +130,8 @@ function simulate_async!(
                     s[i] = -s[i]
                 elseif perturb_mode == :full
                     s[i] = -n * sign(s[i])
+                elseif perturb_mode == :next
+                    s[i] = s[i] + rand([-1,1])
                 else
                     error("Unknown perturbation mode: $perturb_mode")
                 end
@@ -221,86 +223,3 @@ function simulate_multiple_states_to_df(topoFile::String, n::Int;
     return all_rows
 end
 
-
-"""
-    compute_scores_and_plot(df, t1, t2, n; filename=nothing)
-
-Given a DataFrame `df` (from simulate_multiple_states_to_df) and two mutually exclusive
-lists of column names `t1` and `t2`, compute normalized scores for each row and plot their
-evolution over time.
-
-# Arguments
-- `df::DataFrame` : output from simulate_multiple_states_to_df
-- `t1::Vector{String}` : first subset of node names
-- `t2::Vector{String}` : second subset of node names
-- `n::Int` : scaling factor used in the simulation
-
-# Keyword Arguments
-- `filename::Union{Nothing,String}=nothing` : if provided, saves the plot to this file (e.g., "plot.png")
-
-# Returns
-- `df_scores::DataFrame` : DataFrame with columns `:run`, `:time`, `:score1`, `:score2`
-- Displays a line plot and optionally saves it to file
-# """
-# function compute_scores_and_plot(df::DataFrame, t1, t2, n::Int; filename=nothing)
-#     # Sanity checks
-#     all_names = Symbol.(names(df)[1:end-3])  # exclude :run and :time
-#     @assert all(Symbol.(t1) .∈ all_names) "All t1 names must be in df columns"
-#     @assert all(Symbol.(t2) .∈ all_names) "All t2 names must be in df columns"
-#     @assert isempty(intersect(t1,t2)) "t1 and t2 must be mutually exclusive"
-    
-#     # Compute scores
-#     df_scores = DataFrame(run = Int[], time = Int[], score1 = Float64[], score2 = Float64[])
-#     for r in eachrow(df)
-#         s1 = sum(r[Symbol.(t1)]) / (n * length(t1))
-#         s2 = sum(r[Symbol.(t2)]) / (n * length(t2))
-#         push!(df_scores, (r[:state_id], r[:time], s1, s2))
-#     end
-    
-#     # Line plot: scores over time, each run different color
-#     plt = plot()
-#     for run_id in unique(df_scores.run)
-#         df_run = df_scores[df_scores.run .== run_id, :]
-#         plot!(df_run.time, df_run.score1, label="score1, run $run_id", lw=2)
-#         plot!(df_run.time, df_run.score2, label="score2, run $run_id", lw=2, ls=:dash)
-#     end
-#     xlabel!("Time step")
-#     ylabel!("Normalized scores")
-#     title!("Score evolution over time")
-    
-#     display(plt)
-    
-#     if filename !== nothing
-#         savefig(plt, filename)
-#         println("Plot saved to $filename")
-#     end
-    
-#     return df_scores
-# end
-
-
-
-# """
-#     plot_stateList(stateList, n)
-
-# Create a heatmap from `stateList`, where each row is a recorded state and each column is a node.
-# States are scaled to [-1, 1] by dividing by `n`.
-# """
-# function plot_stateList(stateList::Vector{Vector{Int}}, n::Int)
-#     if isempty(stateList)
-#         error("stateList is empty. Nothing to plot.")
-#     end
-
-#     # Convert stateList to a matrix
-#     mat = hcat(stateList...)'  # rows = snapshots, cols = nodes
-#     mat_scaled = mat ./ n      # scale to [-1, 1]
-
-#     heatmap(
-#         mat_scaled,
-#         xlabel = "Node",
-#         ylabel = "Time step (recorded)",
-#         color = :coolwarm,
-#         clims = (-1, 1),
-#         title = "Network state evolution heatmap"
-#     )
-# end
