@@ -166,7 +166,7 @@ Simulates asynchronous Boolean (or multi-level) network updates over multiple in
 - Random asynchronous updates are used: at each step, a random node is selected and updated based on network inputs.
 """
 function shubhamBoolean(
-    update_matrix::Array{Int,2},
+    update_matrix::Union{Array{Int,2}, Array{Float64, 2}},
     nInit::Int, nIter::Int, 
     nLevels::Union{Int, Vector{Int}, String}, 
     vaibhav::Bool, 
@@ -195,7 +195,7 @@ function shubhamBoolean(
     levels = [getLevels(nLevels[i]) for i in 1:n_nodes]
 
     # Prepare update matrix
-    updOriginal = copy(update_matrix)
+    updOriginal = Int.(sign.(update_matrix))
     update_matrix = float.(update_matrix)
     nzUpd = findnz(sparse(update_matrix))
     @inbounds for i in 1:n_nodes
