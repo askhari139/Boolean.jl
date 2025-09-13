@@ -123,7 +123,7 @@ function simulate_async!(
         end
 
         # Apply perturbation if scheduled
-        if perturb_interval > 0 && (t % perturb_interval == 0) && perturb_nodes > 0
+        if (perturb_interval > 0 && (t % perturb_interval == 0) || t == 10) && perturb_nodes > 0
             idxs = rand(rng, 1:N, perturb_nodes)  # sample with replacement
             for i in idxs
                 if perturb_mode == :mirror
