@@ -30,6 +30,13 @@ function edgeWeightPert(topoFile::String; nPerts::Int=10000, nInit::Int64=10000,
         CSV.write(replace(topoFile, ".topo" => "_edgeWeightPert.dat"), df; delim = " ")
 
     end
+    nodesName = join([replace(topoFile, ".topo" => ""), "_nodes.txt"])
+    update_matrix,Nodes = topo2interaction(topoFile)
+    io = open(nodesName, "w")
+    for i in Nodes
+        println(io, i)
+    end
+    close(io);
     p = Progress(nPerts)
     Threads.@threads for i in 1:nPerts
         # println(string(i))
@@ -38,13 +45,7 @@ function edgeWeightPert(topoFile::String; nPerts::Int=10000, nInit::Int64=10000,
         randVec = rands[i,:], types = types, reps = reps)
     end
     finish!(p)
-    nodesName = join([replace(topoFile, ".topo" => ""), "_nodes.txt"])
-        update_matrix,Nodes = topo2interaction(topoFile)
-        io = open(nodesName, "w")
-        for i in Nodes
-            println(io, i)
-        end
-    close(io);
+    
     cd(d1)
 
 end
@@ -61,6 +62,8 @@ function weightedTopoSim(topoFiles::Vector{String}; nInit::Int64=10000,
     finish!(p)
     cd(d1)
 end
+
+
 
 function contWeightPert(topoFile::String; nInit::Int64=1000,
     nIter::Int64=100000, mode::String="Async", stateRep::Int64=-1, 

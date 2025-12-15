@@ -53,6 +53,7 @@ export bmodel_reps,
     coherenceAllNode,
     simulate_async,
     simulate_multiple_states_to_df,
-    simulate_network_logical
+    simulate_network_logical,
+    simulate_multiple_states_to_df_logical
 
 end # module Boolean
