@@ -1,0 +1,13 @@
+Ecadherin_mRNA
+LEF1
+N_bcatenin_H
+SNAI1
+SNAI2
+TGFb
+TGFb_secr
+Twist
+ZEB1
+ZEB1_H
+b_catenin_TCF4
+miR_200
+miR_34

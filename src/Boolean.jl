@@ -11,6 +11,7 @@ using Base.Threads
 using Random
 using Combinatorics
 using JSON
+using StatsBase
 # using PyCall
 import IterTools: product
 # using Plots
@@ -26,7 +27,7 @@ include("oddLevel.jl")
 include("logicalRules.jl")
 include("logicalSim.jl")
 include("bmodel.jl")
-include("boolToTopo.jl")
+include("logicalProcess.jl")
 include("coherence.jl")
 include("stochasticSim.jl")
 
@@ -51,6 +52,7 @@ export bmodel_reps,
     coherence,
     coherenceAllNode,
     simulate_async,
-    simulate_multiple_states_to_df
+    simulate_multiple_states_to_df,
+    simulate_network_logical
 
 end # module Boolean

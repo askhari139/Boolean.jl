@@ -32,7 +32,8 @@ Perform asynchronous updates on a network based on the provided update matrix an
 
 # Example
 ```julia
-states_df, frust_df = asyncUpdate(update_mat, 100, 1000, 1, false, Int[], Int[], Int[])
+# states_df, frust_df = asyncUpdate(update_mat, 100, 1000, 1, false, Int[], Int[], Int[])
+```
 """
 function asyncUpdate(update_matrix::Array{Int,2},
     nInit::Int, nIter::Int, stateRep::Int, vaibhav::Bool, 

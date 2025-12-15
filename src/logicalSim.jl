@@ -1,217 +1,344 @@
-# boolean_network_sim.jl
+using Random
+using DataFrames
 
 """
-    update(F, I, N, X) -> Vector{Int}
+    find_attractors_synchronous(
+        F::Vector{Function},
+        N::Int;
+        nsim::Int = 500,
+        exact::Bool = false,
+        initial_conditions::Vector{Vector{Int}} = Vector{Vector{Int}}(),
+        max_steps::Int = 1000,
+        seed::Int = -1,
+        debug::Bool = false
+    ) -> Tuple{DataFrame, Dict{Vector{Int}, Int}}
 
-Computes the updated state vector from the Boolean functions `F`,
-input index list `I`, and current state vector `X`.
-
-- `F`: List of Boolean functions (each a vector of length 2^k).
-- `I`: List of regulator indices for each node.
-- `N`: Number of nodes.
-- `X`: Current state vector of size `N`.
+Find attractors using synchronous updates (deterministic).
+Uses state memoization since each state always leads to the same attractor.
 """
-function update(F, I, N, X)
-    Fx = zeros(Int, N)
-    for i in 1:N
-        Fx[i] = F[i][bin2dec(X[I[i]]) + 1]
-    end
-    return Fx
-end
-
-"""
-    update_single_node(f, states_regulators) -> Int
-
-Evaluates a single node's Boolean function `f` using the current
-states of its regulators.
-"""
-function update_single_node(f, states_regulators)
-    return f[bin2dec(states_regulators) + 1]
-end
-
-"""
-    num_of_steady_states_asynchronous(F, I, N; kwargs...) -> Tuple
-
-Runs an asynchronous simulation to find steady states in a Boolean network.
-
-Arguments:
-- `F`: Vector of Boolean functions (each a vector of Ints of length 2^k).
-- `I`: Vector of regulator index vectors.
-- `N`: Number of nodes.
-
-Keyword arguments:
-- `nsim`: Number of simulations to run (default: 500).
-- `EXACT`: Whether to exhaustively simulate all 2^N states (default: false).
-- `left_side_of_truth_table`: Used when `EXACT = true`.
-- `initial_sample_points`: Optional specific starting points.
-- `search_depth`: Max steps to simulate from each start (default: 50).
-- `SEED`: RNG seed (default: -1, random).
-- `DEBUG`: Whether to print debug info (default: true).
-
-Returns a tuple:
-    (steady_states, number_of_steady_states, basin_sizes,
-     steady_state_dict, update_cache_dict, seed_used,
-     sampled_points)
-"""
-function num_of_steady_states_asynchronous(
-    F, I, N;
-    nsim = 500,
-    EXACT = false,
-    left_side_of_truth_table = [],
-    initial_sample_points = [],
-    search_depth = 1000,
-    SEED = -1,
-    DEBUG = true,
-    dictF = Dict{Tuple{Int, Int}, Int}()
+function find_attractors_synchronous(
+    F::Vector{Function},
+    N::Int;
+    nsim::Int = 100000,
+    exact::Bool = false,
+    initial_conditions::Vector{Vector{Int}} = Vector{Vector{Int}}(),
+    max_steps::Int = 1000,
+    seed::Int = -1,
+    debug::Bool = false
 )
-    # Generate all 2^N binary input vectors if EXACT mode is enabled
-    if EXACT && isempty(left_side_of_truth_table)
-        left_side_of_truth_table = [reverse(collect(t)) for t in IterTools.product((0:1 for _ in 1:N)...)]
+    # Set random seed
+    if seed == -1
+        seed = rand(UInt32)
     end
-
-    sampled_points = Int[]
-
-    # Prevent using EXACT with initial sample points
-    @assert isempty(initial_sample_points) || !EXACT "Sample points provided but with EXACT=true — ignored."
-
-    # Set seed for reproducibility
-    if SEED == -1
-        SEED = rand(UInt32)
+    Random.seed!(seed)
+    
+    # Generate initial conditions
+    if exact
+        initial_conditions = [collect(digits(i, base=2, pad=N)) for i in 0:(2^N - 1)]
+    elseif isempty(initial_conditions)
+        initial_conditions = [rand([0, 1], N) for _ in 1:nsim]
     end
-    Random.seed!(SEED)
-
-    # Dictionary to memoize function outputs for efficiency
-    if length(dictF) == 0
-        dictF = Dict{Tuple{Int, Int}, Int}()
-    end
-
-    # Data structures to store results
-    steady_states = Int[]                  # list of final steady states (as decimal integers)
-    basin_sizes = Int[]                    # basin size for each steady state
-    steady_state_dict = Dict{Int, Int}()   # maps state -> (index in steady_states array - 1)
-    timeVec = Int[]
-    flagVec = Int[]
-    frustrations = Float64[]
-
-    iterations = EXACT ? 2^N : nsim        # how many initial conditions to try
-
-    if !EXACT && isempty(initial_sample_points)
-        # Generate random initial conditions
-        initial_sample_points = [rand([0, 1], N) for i in 1:iterations]
-    end
-    counter = 0
-    # Main simulation loop
-    @inbounds for iteration in 1:iterations
-        # Initialize a new state vector `x`
-        if EXACT
-            x = copy(left_side_of_truth_table[iteration])
-            xbin = iteration - 1
-        else
-            x = copy(initial_sample_points[iteration])
-            xbin = bin2dec(x)
-        end
-
-        if DEBUG
-            println(iteration," ", -1, -1, false, xbin, x)
-        end
-        HAS_ATTRACTOR = Ref(false)
-        # Run asynchronous updates for at most `search_depth` steps
-        for jj in 1:search_depth
-            FOUND_NEW_STATE = false
-            # This is true if all possible updates of the state are not known
-
-
-            # If current state already known as steady state, assign basin and break
-            index_ss = get(steady_state_dict, xbin, nothing)
-            if !isnothing(index_ss)
-                # Found a steady state
-                basin_sizes[index_ss + 1] += 1
-                break
-            else
-                # Try one asynchronous update round in a random order
-                update_order_to_try = randperm(N)
-                for i in update_order_to_try # Until a steady state or a new state is found
-                    # Try to retrieve cached result of updating node i from this state
-                    fxbin = get(dictF, (xbin, i), nothing)
-                    # If fxbin is nothing, we don't know the update, hence update. 
-                    # check if xbin is unvarying at i. if not, the state gets updated and we found a new state.
-                    if fxbin !== nothing
-                        if fxbin != xbin
-                            # update is known, but not the same as xbin. So x[i] flips on update
-                            FOUND_NEW_STATE = true
-                            x[i] = 1 - x[i]
-                        end
-                    else
-                        # Apply node update rule
-                        fx_i = update_single_node(F[i], x[I[i]])
-                        if fx_i == x[i]
-                            fxbin = xbin
-                        else
-                            # if 0 gets updated to 1, add 2^(N-1) else subtract
-                            fxbin = xbin + (fx_i - x[i])*2^(N - i)
-                            FOUND_NEW_STATE = true
-                        end
-                        x[i] = fx_i
-                        # Cache result
-                        dictF[(xbin, i)] = fxbin
-                    end
-                    # x has been updated
-                    if FOUND_NEW_STATE
-                        xbin = fxbin
-                        break
-                    end
-                    # xbin has been updated if a new state was found. 
-                    #That is, there is an i for which fx_i != x[i], and therefore xbin was not a steady state
-                end
-
-                if DEBUG
-                    println(iteration, jj, i, FOUND_NEW_STATE, xbin, x)
-                end
-            end
-            # if at any jj, we find a steady state, FOUND_NEW_STATE remains false, therefore we get out of the loop and record the jj as time
-            if !FOUND_NEW_STATE
-                HAS_ATTRACTOR[] = true
+    
+    # Data structures
+    attractors = Vector{Vector{Vector{Int}}}()
+    attractor_times = Vector{Vector{Int}}()
+    attractor_dict = Dict{Vector{Int}, Int}()  # State memoization for efficiency
+    converged_flags = Int[]
+    
+    # Process each initial condition
+    for (iter, x_init) in enumerate(initial_conditions)
+        x = copy(x_init)
+        trajectory = Dict{Vector{Int}, Int}()
+        trajectory[copy(x)] = 0
+        
+        found_attractor = false
+        
+        for step in 1:max_steps
+            # Check if we've already seen this state in a previous trajectory
+            if haskey(attractor_dict, x)
+                attractor_id = attractor_dict[x]
+                push!(attractor_times[attractor_id], step)
                 
-                # No further update — reached a steady state
-                index_ss = get(steady_state_dict, xbin, nothing)
-                if index_ss !== nothing
-                    basin_sizes[index_ss + 1] += 1
-                    timeVec[index_ss + 1] = timeVec[index_ss + 1] + jj
-                else
-                    steady_state_dict[xbin] = length(steady_states)
-                    push!(steady_states, xbin)
-                    push!(basin_sizes, 1)
-                    push!(flagVec, 1)
-                    push!(timeVec, jj)
+                # Memoize all states in current trajectory
+                for (state, _) in trajectory
+                    if !haskey(attractor_dict, state)
+                        attractor_dict[state] = attractor_id
+                    end
                 end
-                continue
+                
+                found_attractor = true
+                break
+            end
+            
+            # Synchronous update
+            x_new = [F[i](x) for i in 1:N]
+            
+            # Check if we've closed a cycle in THIS trajectory
+            if haskey(trajectory, x_new)
+                cycle_start = trajectory[x_new]
+                cycle_states = sort(collect(keys(trajectory)), by=s -> trajectory[s])
+                cycle_states = cycle_states[(cycle_start + 1):end]
+                if (cycle_states != [x_new])
+                    push!(cycle_states, x_new)
+                end
+                # Check if this cycle matches an existing attractor
+                attractor_id = find_equivalent_attractor(cycle_states, attractors)
+                
+                if isnothing(attractor_id)
+                    # New attractor
+                    attractor_id = length(attractors) + 1
+                    push!(attractors, cycle_states)
+                    push!(attractor_times, [step])
+                    push!(converged_flags, 1)
+                    
+                    # Memoize all cycle states
+                    for state in cycle_states
+                        attractor_dict[state] = attractor_id
+                    end
+                else
+                    push!(attractor_times[attractor_id], step)
+                end
+                
+                # Memoize trajectory states
+                for (state, _) in trajectory
+                    if !haskey(attractor_dict, state)
+                        attractor_dict[state] = attractor_id
+                    end
+                end
+                
+                found_attractor = true
+                break
+            end
+            
+            trajectory[copy(x_new)] = step
+            x = x_new
+            
+            if debug && step % 100 == 0
+                println("Iteration $iter, Step $step")
             end
         end
-        if !HAS_ATTRACTOR[]
-            index_ss = get(steady_state_dict, xbin, nothing)
-            if index_ss !== nothing
-                basin_sizes[index_ss + 1] += 1
-                timeVec[index_ss + 1] = timeVec[index_ss + 1] + search_depth
-            else
-                steady_state_dict[xbin] = length(steady_states)
-                push!(steady_states, xbin)
-                push!(basin_sizes, 1)
-                push!(flagVec, 0)
-                push!(timeVec, search_depth)
+        
+        # Max steps reached without finding attractor
+        if !found_attractor
+            attractor_id = length(attractors) + 1
+            push!(attractors, [x])
+            push!(attractor_times, [max_steps])
+            push!(converged_flags, 0)
+            
+            for (state, _) in trajectory
+                attractor_dict[state] = attractor_id
             end
-        end
-        if DEBUG
-            println()
         end
     end
-    basin_sizes = basin_sizes./sum(basin_sizes)
-    ssDf = DataFrame(
-        steady_state = steady_states,
-        basin_size = basin_sizes,
-        time_to_reach = timeVec./sum(basin_sizes),
-        flag = flagVec
+    
+    # Calculate statistics
+    basin_sizes = [count(==(id), values(attractor_dict)) for id in 1:length(attractors)]
+    basin_proportions = basin_sizes ./ length(initial_conditions)
+    avg_times = [sum(times) / length(times) for times in attractor_times]
+    
+    
+    df = DataFrame(
+        states = attractors,
+        basin_size = basin_proportions,
+        time = avg_times,
+        flag = converged_flags
     )
-    # Final check: Warn if some runs didn’t converge to a state
-    return ssDf, dictF
+    
+    return df, attractor_dict
 end
 
+"""
+    find_attractors_asynchronous(
+        F::Vector{Function},
+        N::Int;
+        nsim::Int = 500,
+        initial_conditions::Vector{Vector{Int}} = Vector{Vector{Int}}(),
+        max_steps::Int = 1000,
+        seed::Int = -1,
+        debug::Bool = false
+    ) -> DataFrame
+
+Find attractors using asynchronous updates (stochastic).
+Each trajectory is independent since dynamics are non-deterministic.
+Basin sizes represent the proportion of trajectories reaching each attractor.
+"""
+function find_attractors_asynchronous(
+    F::Vector{Function},
+    N::Int;
+    nsim::Int = 100000,
+    initial_conditions::Vector{Vector{Int}} = Vector{Vector{Int}}(),
+    max_steps::Int = 1000,
+    seed::Int = -1,
+    debug::Bool = false
+)
+    # Set random seed
+    if seed == -1
+        seed = rand(UInt32)
+    end
+    Random.seed!(seed)
+    
+    # Generate initial conditions
+    if isempty(initial_conditions)
+        initial_conditions = [rand([0, 1], N) for _ in 1:nsim]
+    end
+    
+    # Data structures - NO state dictionary for async
+    attractors = Vector{Vector{Vector{Int}}}()
+    attractor_counts = Int[]  # Count trajectories reaching each attractor
+    attractor_times = Vector{Vector{Int}}()
+    converged_flags = Int[]
+    
+    # Process each trajectory independently
+    for (iter, x_init) in enumerate(initial_conditions)
+        x = copy(x_init)
+        trajectory = Dict{Vector{Int}, Int}()
+        trajectory[copy(x)] = 0
+        
+        found_attractor = false
+        
+        for step in 1:max_steps
+            # Asynchronous update: pick random node that wants to change
+            x_new = copy(x)
+            nodes_to_update = randperm(N)
+            for i in nodes_to_update
+                new_val = F[i](x_new)
+                if x_new[i] != new_val
+                    x_new[i] = new_val
+                    break
+                end
+            end
+            
+            # Check if we've closed a cycle in THIS trajectory
+            if haskey(trajectory, x_new)
+                cycle_start = trajectory[x_new]
+                cycle_states = sort(collect(keys(trajectory)), by=s -> trajectory[s])
+                cycle_states = cycle_states[(cycle_start + 1):end]
+                if (cycle_states != [x_new])
+                    push!(cycle_states, x_new)
+                end
+                
+                # Check if this cycle matches an existing attractor
+                attractor_id = find_equivalent_attractor(cycle_states, attractors)
+                
+                if attractor_id === nothing
+                    # New attractor discovered
+                    attractor_id = length(attractors) + 1
+                    push!(attractors, cycle_states)
+                    push!(attractor_counts, 1)
+                    push!(attractor_times, [step])
+                    push!(converged_flags, 1)
+                else
+                    # Existing attractor
+                    attractor_counts[attractor_id] += 1
+                    push!(attractor_times[attractor_id], step)
+                end
+                
+                found_attractor = true
+                break
+            end
+            
+            trajectory[copy(x_new)] = step
+            x = x_new
+            
+            if debug && step % 100 == 0
+                println("Iteration $iter, Step $step")
+            end
+        end
+        
+        # Max steps reached without finding attractor
+        if !found_attractor
+            # Treat final state as an attractor (unconverged)
+            attractor_id = find_equivalent_attractor([x], attractors)
+            
+            if attractor_id === nothing
+                push!(attractors, [x])
+                push!(attractor_counts, 1)
+                push!(attractor_times, [max_steps])
+                push!(converged_flags, 0)
+            else
+                attractor_counts[attractor_id] += 1
+                push!(attractor_times[attractor_id], max_steps)
+            end
+        end
+    end
+    
+    # Calculate statistics based on trajectory counts
+    total_trajectories = length(initial_conditions)
+    basin_proportions = attractor_counts ./ total_trajectories
+    avg_times = [sum(times) / length(times) for times in attractor_times]
+    
+    
+    df = DataFrame(
+        states = attractors,
+        basin_size = basin_proportions,
+        time = avg_times,
+        flag = converged_flags
+    )
+    
+    return df
+end
+
+"""
+    find_equivalent_attractor(cycle::Vector{Vector{Int}}, attractors::Vector{Vector{Vector{Int}}}) -> Union{Int, Nothing}
+
+Check if a cycle matches an existing attractor (accounting for rotation).
+"""
+function find_equivalent_attractor(cycle::Vector{Vector{Int}}, attractors::Vector{Vector{Vector{Int}}})
+    for (id, attractor) in enumerate(attractors)
+        if cycles_equivalent(cycle, attractor)
+            return id
+        end
+    end
+    return nothing
+end
+
+"""
+    cycles_equivalent(cycle1::Vector{Vector{Int}}, cycle2::Vector{Vector{Int}}) -> Bool
+
+Check if two cycles are equivalent (same states, possibly rotated).
+"""
+function cycles_equivalent(cycle1::Vector{Vector{Int}}, cycle2::Vector{Vector{Int}})
+    if length(cycle1) != length(cycle2)
+        return false
+    end
+    
+    n = length(cycle1)
+    for offset in 0:(n-1)
+        match = true
+        for i in 1:n
+            if cycle1[i] != cycle2[mod1(i + offset, n)]
+                match = false
+                break
+            end
+        end
+        if match
+            return true
+        end
+    end
+    
+    return false
+end
+
+
+
+# Example usage
+"""
+# Synchronous
+F, I, N, degrees, variables, constants = getNodeFunctions("EMT_Switch.txt")
+
+df_sync, state_dict = find_attractors_synchronous(
+    F, N;
+    nsim = 1000,
+    exact = false,
+    max_steps = 500,
+    seed = 42
+)
+
+# Asynchronous
+df_async = find_attractors_asynchronous(
+    F, N;
+    nsim = 10000,  # Need more samples for stochastic dynamics
+    max_steps = 2000,  # Need more steps since only one node updates per step
+    seed = 42
+)
+"""

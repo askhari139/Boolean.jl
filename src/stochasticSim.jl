@@ -9,8 +9,12 @@ using Random
 Return a random integer state vector of length `N` with elements in `-n:n` **excluding 0**.
 Each element represents a discrete state `k/n`.
 """
-function random_state(N::Integer, n::Integer; rng=Random.GLOBAL_RNG)
-    return rand(rng, [k for k in -n:n if k != 0], N)
+function random_state(N::Integer, n::Integer; rng=Random.GLOBAL_RNG, stateRep::Int = -1)
+    if stateRep == 0
+        return rand(rng, [k for k in -n:n if k != 0], N)
+    else
+        return rand(rng, [k for k in -n:n if k != 0], N)
+    end
 end
 
 """
@@ -223,3 +227,118 @@ function simulate_multiple_states_to_df(topoFile::String, n::Int;
     return all_rows
 end
 
+
+function simulate_sync_logical(x_init, F, N; record_every::Int = 1,
+    perturb_nodes::Int = 0,
+    perturb_interval::Int = typemax(Int), max_steps::Int = 1000)
+    x = copy(x_init)
+    trajectory = Dict{Vector{Int}, Int}()
+    trajectory[copy(x)] = 0
+    
+    found_attractor = false
+    cont_pert = perturb_interval > 0 && perturb_interval != Inf && perturb_nodes != 0
+    traj = Vector{Vector{Int}}()
+    for step in 1:max_steps
+        # Synchronous update
+        x_new = [F[i](x) for i in 1:N]
+        
+        # Check if we've closed a cycle in THIS trajectory
+        if !cont_pert && haskey(trajectory, x_new)
+            cycle_start = trajectory[x_new]
+            cycle_states = sort(collect(keys(trajectory)), by=s -> trajectory[s])
+            cycle_states = cycle_states[(cycle_start + 1):end]
+            if (cycle_states != [x_new])
+                push!(cycle_states, x_new)
+            end
+            # Check if this cycle matches an existing attractor
+            found_attractor = true
+            break
+        end
+        
+        trajectory[copy(x_new)] = step
+        x = x_new
+        if cont_pert && (step%perturb_interval == 0 || step == 10)
+            # print("enter the dragon")
+            if step%record_every == 0
+                # print("save the dragon")
+                push!(traj, x)
+            end
+            idxs = rand(1:N, perturb_nodes)  # sample with replacement
+            for i in idxs
+                if x[i] == 0
+                    k = 1
+                else
+                    k = 0
+                end
+                x[i] = k
+            end
+        end
+    end
+    
+    # Max steps reached without finding attractor
+    if !found_attractor
+        cycle_states = [x]
+    end
+    if cont_pert
+        # println("test")
+        return traj
+    else
+        return cycle_states
+    end
+end
+
+"""
+    simulate_multiple_states_to_df(states, J, names; kwargs...)
+
+Run `simulate_async` on each state in `states` and store all recorded states in a DataFrame.
+
+# Arguments
+- `states::Vector{Vector{Int}}` : list of initial states
+- `J::AbstractMatrix{Int}` : adjacency/sign matrix
+- `names::Vector{String}` : names of nodes, length must match state vector length
+
+# Keyword Arguments
+- All named arguments of `simulate_async` can be passed here (steps, perturb_nodes, etc.)
+
+# Returns
+- `df::DataFrame` : each row is a recorded state, columns are node names, plus `:run` column indicating which initial state
+"""
+function simulate_multiple_states_to_df_logical(rules_file::String; 
+                                        states::Vector{Vector{Int}}=Vector{Vector{Int}}(),
+                                        nSim::Int=10,
+                                        kwargs...)
+    F, I, N, degrees, variables, constants = getNodeFunctions(rules_file)
+    nms = vcat(variables, constants)
+    all_rows = DataFrame()
+    if isempty(states)
+        attrFile = replace(rules_file, ".txt" => "_attractors.csv")
+        if isfile(attrFile)
+            df = CSV.read(attrFile, DataFrame)
+            n_states = min(size(df, 1), 10)
+            states = vcat(
+                split.(df.states[1:div(n_states, 2)], ";"),
+                split.(df.states[div(n_states, 2)+1:end], ";")
+            )
+            states = [[parse(Int, c) for c in split(state[1], "_")] for state in states]
+        else
+            states = [random_state(N, 1;stateRep = 0) for _ in 1:10]
+        end
+    end
+    for (run_idx,s0) in enumerate(states)
+        for i in 1:nSim
+        # Run simulation
+            history = simulate_sync_logical(s0, F, N; kwargs...)
+            # Convert history (Vector of Vectors) to DataFrame
+            if !isempty(history)
+                df_run = DataFrame(hcat(history...)', Symbol.(nms))
+                df_run[!, :Iteration] = fill(i, size(df_run, 1))
+                df_run[!, :state_next] = [format_attractor_states([h]) for h in history]
+                df_run[!,:state_init] = fill(format_attractor_states([s0]), size(df_run, 1))  
+                df_run[!, :state_id] = fill(run_idx, size(df_run, 1))# optional: keep track of which initial state
+                append!(all_rows, df_run)
+            end
+        end
+    end
+    
+    return all_rows
+end

@@ -26,7 +26,7 @@ end
 
 
 #=
-function nameCan you make a studio ghibli avatar of a photo? : getUpdateIsing
+function name : getUpdateIsing
 Description : This function calculates the update function for each node in the network
 Inputs :
     topoFile : string; Path to the topology file

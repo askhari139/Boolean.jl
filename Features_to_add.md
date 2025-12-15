@@ -18,4 +18,5 @@
 - Derrida function calculation
 - Logical rule modelling:
     - Using prime implicants and trap spaces to accelerate the computation
+    - Getting topo files from boolean rules
     
