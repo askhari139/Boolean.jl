@@ -263,6 +263,13 @@ function defaultWeightsFunction(noise::Float64)
     return weightsFunction
 end
 
+function contWeightUp(noise::Float64, update_matrix::Union{Array{Int,2}, Array{Float64,2}})
+    function weightsFunction(randVec::Array{Float64, 1})
+        
+    end
+    return weightsFunction
+end
+
 function adjust_indices(indices, deleted)
     sort!(deleted)
     adjusted = Int[]

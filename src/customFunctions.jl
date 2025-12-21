@@ -67,40 +67,92 @@ end
 
 function contWeightPert(topoFile::String; nInit::Int64=1000,
     nIter::Int64=100000, mode::String="Async", stateRep::Int64=-1, 
-    noise::Float64=0.01, randVec = [0.0], steadyStates::Bool=true)
+    noise::Float64=0.01, steadyStates::Bool=true, topN::Int=10,
+    frequency::Int=1)
+    
+    # Load network topology
     updMat, nodes = topo2interaction(topoFile)
+    
+    # Run simulation with proper weight function
+    weightFunc = defaultWeightsFunction(noise)
     stateMat, states = asyncRandCont(updMat, nInit, nIter, stateRep; 
-        weightFunc = defaultWeightsFunction(noise), randVec = randVec, 
-        steadyStates=steadyStates)
-    MRT = []
-    MRTsd = []
-    switchingEvents = []
-    for i in eachindex(states)
-        m = [sum(stateMat[j, :].== i)/nIter for j in 1:size(stateMat, 1)]
-        push!(MRT, avg(m))
-        push!(MRTsd, SD(m))
-    end
-    for i in 1:size(stateMat, 1)
-        s = stateMat[i, :]
-        counter = 0
-        for t in eachindex(s)
-            if t == 1
-                continue
-            end
-            if s[t] != s[t-1]
-                counter = counter + 1
-            end
+        noise=noise, steadyStates=steadyStates, topN=topN, frequency=frequency)
+    
+    nStates = length(states)
+    
+    # Calculate Mean Residence Time (MRT) for each state - VECTORIZED
+    stateFreqs = zeros(Float64, nInit, nStates)
+    for i in 1:nInit
+        for stateID in 1:nStates
+            stateFreqs[i, stateID] = sum(stateMat[i, :] .== stateID) / nIter
         end
-        push!(switchingEvents, counter)
     end
-    # write stateMat to a file with the name topoFile_contWeightPert.dat
-    stateMat = DataFrame(stateMat, :auto)
-    CSV.write(replace(topoFile, ".topo" => "_contWeightPert.csv"), stateMat)
-    # write states to a text file with the name topoFile_contWeightPert_states.txt
-    stateDf = DataFrame(states = states, MRT = MRT, MRTsd = MRTsd, 
-        ID = 1:length(states))
-    CSV.write(replace(topoFile, ".topo" => "_contWeightPertMRT.csv"), stateDf)
-    return 
+    
+    MRT = vec(mean(stateFreqs, dims=1)) # column-wise means - each state across all trajectories
+    MRTsd = vec(std(stateFreqs, dims=1)) # column-wise std
+    
+    # Count switching events per trajectory - VECTORIZED
+    switchingEvents = zeros(Int, nInit)
+    for i in 1:nInit
+        switchingEvents[i] = sum(stateMat[i, 2:end] .!= stateMat[i, 1:end-1])
+    end
+    
+    # Save results
+    baseName = replace(topoFile, ".topo" => "")
+    
+    # Save trajectory matrix
+    trajectoryDF = DataFrame(stateMat, :auto)
+    rename!(trajectoryDF, ["t$i" for i in 1:nIter])
+    CSV.write("$(baseName)_contWeightPert.csv", trajectoryDF)
+    
+    # Save state statistics
+    stateStatsDF = DataFrame(
+        ID = 1:nStates,
+        State = states,
+        MRT = MRT,
+        MRTsd = MRTsd
+    )
+    CSV.write("$(baseName)_contWeightPert_states.csv", stateStatsDF)
+    
+    # Extract initial states from first column of stateMat
+    initialStateIDs = stateMat[:, 1]
+    initialStates = states[initialStateIDs]
+    
+    # Save trajectory-level statistics
+    trajectoryStatsDF = DataFrame(
+        TrajectoryID = 1:nInit,
+        InitialStateID = initialStateIDs,
+        InitialState = initialStates,
+        SwitchingEvents = switchingEvents
+    )
+    CSV.write("$(baseName)_contWeightPert_trajectories.csv", trajectoryStatsDF)
+    
+    # If using steady states, add per-initial-condition statistics
+    if steadyStates
+        # Group by initial state and calculate statistics
+        initialConditionStats = combine(groupby(trajectoryStatsDF, [:InitialStateID, :InitialState])) do df
+            trajIDs = df.TrajectoryID
+            
+            # Calculate MRT for each state, averaged over trajectories from this initial condition
+            stateMRTs = [mean(stateFreqs[trajIDs, stateID]) for stateID in 1:nStates]
+            
+            # Find top 5 most visited states
+            topIndices = sortperm(stateMRTs, rev=true)[1:min(5, nStates)]
+            
+            DataFrame(
+                nTrajectories = nrow(df),
+                MeanSwitchingEvents = mean(df.SwitchingEvents),
+                StdSwitchingEvents = std(df.SwitchingEvents),
+                MedianSwitchingEvents = median(df.SwitchingEvents),
+                TopStates = join(states[topIndices], "; "),
+                TopStatesMRT = join(round.(stateMRTs[topIndices], digits=4), "; ")
+            )
+        end
+        
+        CSV.write("$(baseName)_contWeightPert_byInitialState.csv", initialConditionStats)
+    end
+    
+    return stateStatsDF, trajectoryStatsDF
 end
 
 function getSSListRand(topoFile::String;

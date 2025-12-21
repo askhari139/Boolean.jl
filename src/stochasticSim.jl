@@ -1,5 +1,3 @@
-using Random
-
 # ============================
 # Random initial state generator
 # ============================

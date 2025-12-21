@@ -256,79 +256,251 @@ function asyncRandUpdate(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
 end
 
 
-function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
+function asyncRandContOld(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     nInit::Int, nIter::Int, stateRep::Int; randVec::Array{Float64,1} = [0.0], 
-    weightFunc::Function = defaultWeightsFunction(0.01), 
-    frequency::Int = 1, steadyStates::Bool = true)
-    n_nodes = size(update_matrix,1)
+    noise::Float64 = 0.01,
+    # weightFunc::Function = defaultWeightsFunction(noise), 
+    frequency::Int = 1, steadyStates::Bool = true, topN::Int = 10)
+    
+    n_nodes = size(update_matrix, 1)
+    
+    # Generate initial conditions OUTSIDE the main loop
     if steadyStates
         updm = sign.(update_matrix)
-        states_df, frust_df = asyncUpdate(updm, 10000, 1000, stateRep,false,[],[],[])
-        states = states_df[:, :fin]
-        states = rand(states, nInit)
-    end
-    update_matrix = update_matrix'
-    nzId = enumerate(findall(update_matrix.!=0))
-    if typeof(update_matrix) == Adjoint{Int64, Matrix{Int64}}
-        if randVec == [0.0]
-            randVec = rand(length(nzId))
-        end
-        update_matrix = float(update_matrix)
-        for (i,j) in nzId
-            update_matrix[j] = update_matrix[j]*randVec[i]
-        end
-    else
-        randVec = [update_matrix[j] for (i,j) in nzId]
-    end
-    stateVec = ifelse(stateRep == 0, [0.0,1.0], [-1.0,1.0])
-    initVec = []
-    finVec = []
-    flagVec = []
-    frustVec = []
-    timeVec = []
-    sListUnique = []
-    sListKeys = []
-    # create a state matrix of size nInit x nIter
-    stateMatrix = zeros(Int, nInit, nIter)
-    @showprogress for i in 1:nInit
-        # print(i)
-        update_matrix2 = update_matrix
-        if steadyStates
-            state = parse.(Float64, split(states[i], "_"))
+        states_df, frust_df = asyncUpdate(updm, 10000,1000,stateRep,false,Int[],Int[],Int[])
+        
+        if topN != 0
+            freq_table = combine(groupby(states_df, :fin), nrow => :Count)
+            freq_table = sort(freq_table, :Count, rev=true)
+            states = freq_table[1:min(topN, nrow(states_df)), :fin]
         else
-            state = rand(stateVec, n_nodes) #pick random state
+            states = states_df[:, :fin]
         end
-        init = join(Int.(zeroConv(state)), "_")
-        flag = 0
-        time = 1
-        uList = rand(1:n_nodes, nIter)
+        initialStates = rand(states, nInit)
+    else
+        # Generate ALL random initial conditions at once
+        stateVec = ifelse(stateRep == 0, [0.0, 1.0], [-1.0, 1.0])
+        initialStates = [rand(stateVec, n_nodes) for _ in 1:nInit]
+    end
+    
+    update_matrix = update_matrix'
+    nzId = enumerate(findall(update_matrix .!= 0))
+    
+    # if typeof(update_matrix) == Adjoint{Int64, Matrix{Int64}}
+    #     if randVec == [0.0]
+    #         randVec = rand(length(nzId))
+    #     end
+    #     update_matrix = float(update_matrix)
+    #     for (i, j) in nzId
+    #         update_matrix[j] = update_matrix[j] * randVec[i]
+    #     end
+    # else
+    #     randVec = [update_matrix[j] for (i, j) in nzId]
+    # end
+    update_matrix = float(update_matrix)
+    # Dictionary to map state tuples -> integer IDs (faster than strings!)
+    stateDict = Dict{NTuple{n_nodes, Int}, Int}()
+    nextID = 1
+    
+    # Pre-allocate state matrix
+    stateMatrix = zeros(Int, nInit, nIter)
+    
+    Threads.@threads for i in 1:nInit
+        # update_matrix2 = update_matrix
+        
+        # Get pre-generated initial state
+        if steadyStates
+            state = parse.(Float64, split(initialStates[i], "_"))
+        else
+            state = initialStates[i]
+        end
+        
         updFunc = ifelse(stateRep == 0, zeroConv, signVec)
-        sList = [init]
+        uList = rand(1:n_nodes, nIter)
+        
+        # Store states as integer matrix (fast!)
+        stateHistoryInt = Matrix{Int}(undef, nIter, n_nodes)
+        stateHistoryInt[1, :] = Int.(zeroConv(state))
+        
         for j in 2:nIter
-            s1 = float(updFunc(update_matrix2*state))
-            if iszero(j%frequency)
-                randVec = weightFunc(randVec)
-                for (k,l) in nzId
-                    update_matrix2[l] = update_matrix[l]*randVec[k]
+            if iszero(j % frequency)
+                randVec = randn(length(nzId))*noise
+                for (k, l) in nzId
+                    rVal = update_matrix[l] + randVec[k]
+                    if update_matrix[l] > 0
+                        rVal = min(max(rVal, 0), 1)
+                    else
+                        rVal = min(max(rVal, -1), 0)
+                    end
+                    update_matrix[l] = rVal
                 end
             end
-            s1 = [s1[i] == 0 ? state[i] : s1[i] for i in 1:n_nodes]
+            
+            s1 = float(updFunc(update_matrix * state))
+            s1 = [s1[idx] == 0 ? state[idx] : s1[idx] for idx in 1:n_nodes]
             u = uList[j]
             state[u] = s1[u]
-            st = join(Int.(zeroConv(state)), "_")
-            push!(sList, st)
+            stateHistoryInt[j, :] = Int.(zeroConv(state))
         end
-        sUnique = unique(sList)
-        for st in sUnique
-            if st in sListKeys
-                continue
+        
+        # Encode trajectory using tuples (much faster than string comparison!)
+        for j in 1:nIter
+            state_tuple = Tuple(stateHistoryInt[j, :])
+            if !haskey(stateDict, state_tuple)
+                stateDict[state_tuple] = nextID
+                nextID += 1
             end
-            # push!(sListKeys, st)
-            push!(sListUnique, st)
+            stateMatrix[i, j] = stateDict[state_tuple]
         end
-        # sList is the ID of each state in sListUnique
-        sInt = [findfirst(x -> x == st, sListUnique) for st in sList]
-        stateMatrix[i,:] = sInt
     end
+    
+    # Convert tuples to strings only for final output
+    sListUnique = Vector{String}(undef, length(stateDict))
+    for (state_tuple, id) in stateDict
+        sListUnique[id] = join(state_tuple, "_")
+    end
+    
+    return stateMatrix, sListUnique
+end
+
+function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
+    nInit::Int, nIter::Int, stateRep::Int; randVec::Array{Float64,1} = [0.0], 
+    noise::Float64 = 0.01,
+    # weightFunc::Function = defaultWeightsFunction(noise), 
+    frequency::Int = 1, steadyStates::Bool = true, topN::Int = 10)
+    
+    n_nodes = size(update_matrix, 1)
+    
+    # Generate initial conditions OUTSIDE the main loop
+    if steadyStates
+        updm = sign.(update_matrix)
+        states_df, frust_df = asyncUpdate(updm, 10000,1000,stateRep,false,Int[],Int[],Int[])
+        
+        if topN != 0
+            freq_table = combine(groupby(states_df, :fin), nrow => :Count)
+            freq_table = sort(freq_table, :Count, rev=true)
+            states = freq_table[1:min(topN, nrow(states_df)), :fin]
+        else
+            states = states_df[:, :fin]
+        end
+        initialStates = rand(states, nInit)
+    else
+        # Generate ALL random initial conditions at once
+        stateVec = ifelse(stateRep == 0, [0.0, 1.0], [-1.0, 1.0])
+        initialStates = [rand(stateVec, n_nodes) for _ in 1:nInit]
+    end
+    
+    update_matrix = update_matrix'
+    nzId = enumerate(findall(update_matrix .!= 0))
+    
+    # if typeof(update_matrix) == Adjoint{Int64, Matrix{Int64}}
+    #     if randVec == [0.0]
+    #         randVec = rand(length(nzId))
+    #     end
+    #     update_matrix = float(update_matrix)
+    #     for (i, j) in nzId
+    #         update_matrix[j] = update_matrix[j] * randVec[i]
+    #     end
+    # else
+    #     randVec = [update_matrix[j] for (i, j) in nzId]
+    # end
+    update_matrix = float(update_matrix)
+    
+    # Pre-allocate state matrix
+    stateMatrix = zeros(Int, nInit, nIter)
+
+    nthreads = Threads.nthreads()
+    localDicts = [Dict{NTuple{n_nodes, Float64}, Int}() for _ in 1:nthreads]
+    localNextIDs = ones(Int, nthreads)
+    
+    trajectoryThreads = zeros(Int, nInit)
+
+    Threads.@threads for i in 1:nInit
+        # println(i)
+        # update_matrix2 = update_matrix
+        tid = Threads.threadid()
+        trajectoryThreads[i] = tid
+        localDict = localDicts[tid]
+        # Get pre-generated initial state
+        if steadyStates
+            state = parse.(Float64, split(initialStates[i], "_"))
+        else
+            state = initialStates[i]
+        end
+        
+        updFunc = ifelse(stateRep == 0, zeroConv, signVec)
+        uList = rand(1:n_nodes, nIter)
+        
+        # Store states as integer matrix (fast!)
+        stateHistoryInt = Matrix{Float64}(undef, nIter, n_nodes)
+        stateHistoryInt[1, :] = state
+        
+        for j in 2:nIter
+            if iszero(j % frequency)
+                randVec = randn(length(nzId))*noise
+                for (k, l) in nzId
+                    rVal = update_matrix[l] + randVec[k]
+                    if update_matrix[l] > 0
+                        rVal = min(max(rVal, 0), 1)
+                    else
+                        rVal = min(max(rVal, -1), 0)
+                    end
+                    update_matrix[l] = rVal
+                end
+            end
+            
+            s1 = float(updFunc(update_matrix * state))
+            s1 = [s1[idx] == 0 ? state[idx] : s1[idx] for idx in 1:n_nodes]
+            u = uList[j]
+            state[u] = s1[u]
+            stateHistoryInt[j, :] = state
+        end
+        
+        # Encode trajectory using tuples (much faster than string comparison!)
+        for j in 1:nIter
+            state_tuple = Tuple(stateHistoryInt[j, :])
+            if !haskey(localDict, state_tuple)
+                localDict[state_tuple] = localNextIDs[tid]
+                localNextIDs[tid] += 1
+            end
+            stateMatrix[i, j] = localDict[state_tuple]
+        end
+    end
+    globalDict = Dict{NTuple{n_nodes, Float64}, Int}()
+    threadOffsets = zeros(Int, nthreads)
+    globalNextID = 1
+    
+    # Assign global IDs
+    for tid in 1:nthreads
+        threadOffsets[tid] = globalNextID - 1
+        for (state_tuple, local_id) in localDicts[tid]
+            if !haskey(globalDict, state_tuple)
+                globalDict[state_tuple] = globalNextID
+                globalNextID += 1
+            end
+        end
+    end
+    
+    # Remap state matrix to global IDs
+    Threads.@threads for i in 1:nInit
+        original_tid = trajectoryThreads[i]  # ← Use original thread
+        localDict = localDicts[original_tid]
+        
+        reverseMap = Dict(local_id => state_tuple for (state_tuple, local_id) in localDict)
+        
+        for j in 1:nIter
+            local_id = stateMatrix[i, j]
+            state_tuple = reverseMap[local_id]
+            stateMatrix[i, j] = globalDict[state_tuple]
+        end
+    end
+    
+    # Convert to strings ONLY NOW using zeroConv
+    println("Converting $(length(globalDict)) unique states to strings...")
+    sListUnique = Vector{String}(undef, length(globalDict))
+    for (state_tuple, id) in globalDict
+        sListUnique[id] = join(Int.(zeroConv(collect(state_tuple))), "_")
+    end
+    
     return stateMatrix, sListUnique
 end

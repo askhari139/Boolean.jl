@@ -31,7 +31,7 @@ include("logicalProcess.jl")
 include("coherence.jl")
 include("stochasticSim.jl")
 
-
+println("local")
 # Determine the absolute path to the Python script's directory
 script_dir = joinpath(@__DIR__)  # @__DIR__ gives path to the current file (src/)
 
