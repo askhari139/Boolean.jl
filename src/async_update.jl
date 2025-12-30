@@ -379,7 +379,7 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
         if topN != 0
             freq_table = combine(groupby(states_df, :fin), nrow => :Count)
             freq_table = sort(freq_table, :Count, rev=true)
-            states = freq_table[1:min(topN, nrow(states_df)), :fin]
+            states = freq_table[1:min(topN, nrow(freq_table)), :fin]
         else
             states = states_df[:, :fin]
         end
