@@ -75,16 +75,22 @@ function contWeightPert(topoFile::String; nInit::Int64=1000,
     
     # Run simulation with proper weight function
     weightFunc = defaultWeightsFunction(noise)
-    stateMat, states = asyncRandCont(updMat, nInit, nIter, stateRep; 
+    y1 = @elapsed stateMat, states = asyncRandCont(updMat, nInit, nIter, stateRep; 
         noise=noise, steadyStates=steadyStates, topN=topN, frequency=frequency)
-    
+    println("Async rand took $y1")
     nStates = length(states)
     
     # Calculate Mean Residence Time (MRT) for each state - VECTORIZED
     stateFreqs = zeros(Float64, nInit, nStates)
-    for i in 1:nInit
-        for stateID in 1:nStates
-            stateFreqs[i, stateID] = sum(stateMat[i, :] .== stateID) / nIter
+    # stateFreqs = Dict{Int, Vector{Float64}}()
+    Threads.@threads for i in 1:nInit
+        counts = Dict{Int, Int}()
+        for j in 1:nIter
+            stateID = stateMat[i,j]
+            counts[stateID] = get(counts, stateID, 0) + 1
+        end
+        for (stateID, count) in counts
+            stateFreqs[i, stateID] = count / nIter
         end
     end
     
@@ -112,6 +118,7 @@ function contWeightPert(topoFile::String; nInit::Int64=1000,
         MRT = MRT,
         MRTsd = MRTsd
     )
+    sort!(stateStatsDF, :MRT, rev=true)
     CSV.write("$(baseName)_contWeightPert_states.csv", stateStatsDF)
     
     # Extract initial states from first column of stateMat

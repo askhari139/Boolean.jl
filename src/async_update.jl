@@ -482,7 +482,8 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     end
     
     # Remap state matrix to global IDs
-    Threads.@threads for i in 1:nInit
+    @elapsed Threads.@threads for i in 1:nInit
+        # println(i)
         original_tid = trajectoryThreads[i]  # ← Use original thread
         localDict = localDicts[original_tid]
         
@@ -498,7 +499,7 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     # Convert to strings ONLY NOW using zeroConv
     println("Converting $(length(globalDict)) unique states to strings...")
     sListUnique = Vector{String}(undef, length(globalDict))
-    for (state_tuple, id) in globalDict
+    @showprogress for (state_tuple, id) in globalDict
         sListUnique[id] = join(Int.(zeroConv(collect(state_tuple))), "_")
     end
     
