@@ -1,0 +1,16 @@
+BAD
+BAK
+BAX
+BCL2
+BCLXL
+BID
+BIK
+BIM
+Casp2
+Casp3
+Casp8
+Casp9
+Cyto_C
+IAPs
+MCL_1
+SMAC

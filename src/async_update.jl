@@ -39,7 +39,8 @@ function asyncUpdate(update_matrix::Array{Int,2},
     nInit::Int, nIter::Int, stateRep::Int, vaibhav::Bool, 
     turnOffNodes::Array{Int,1}, 
     kdNodes::Array{Int, 1}, oeNodes::Array{Int, 1};
-    stateList::Vector{Vector{Int}} = Vector{Vector{Int}}()
+    stateList::Vector{Vector{Int}} = Vector{Vector{Int}}(),
+    
     )
 
     n_nodes = size(update_matrix,1)
@@ -505,3 +506,4 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     
     return stateMatrix, sListUnique
 end
+

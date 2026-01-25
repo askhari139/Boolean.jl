@@ -1,5 +1,72 @@
-using Random
-using DataFrames
+"""
+    update_truthtable(F, I, N, X) -> Vector{Int}
+
+Computes the updated state vector from the Boolean functions `F`,
+input index list `I`, and current state vector `X`.
+
+- `F`: List of Boolean functions (each a vector of length 2^k).
+- `I`: List of regulator indices for each node.
+- `N`: Number of nodes.
+- `X`: Current state vector of size `N`.
+"""
+function update_truthtable(F, I, N, X)
+    Fx = zeros(Int, N)
+    for i in 1:N
+        Fx[i] = F[i][bin2dec(X[I[i]]) + 1]
+    end
+    return Fx
+end
+
+function update_truthtable_single(F, I, N, X, i)
+    return F[i][bin2dec(X[I[i]]) + 1]
+end
+
+"""
+    update_dnf(F, I, N, X) -> Vector{Int}
+
+Computes the updated state vector from the Boolean functions `F`,
+input index list `I`, and current state vector `X`.
+
+- `F`: List of Boolean functions (each a vector of length 2^k).
+- `I`: List of regulator indices for each node.
+- `N`: Number of nodes.
+- `X`: Current state vector of size `N`.
+"""
+function update_dnf(F, N, X)
+    Fx = zeros(Int, N)
+    for i in 1:N
+        Fx[i] = F[i](X)
+    end
+    return Fx
+end
+
+function update_dnf_single(F, N, X, i)
+    return Fx[i] = F[i](X)
+end
+
+function update_ising_single(update_matrix, X, i)
+    s = sum([update_matrix[j,i]*X[j] for j in eachindex(X)])
+    return if s == 0 X[i] else sign(s) end
+end
+
+function update_ising(update_matrix, X)
+    return Int.(([update_ising_single(update_matrix, X, i) for i in eachindex(X)] .+1)./2)
+end
+
+function update_nising_single(update_matrix, X, i)
+    s = sum([update_matrix[j,i]*X[j] for j in eachindex(X)])
+    if s == 0
+        y = X[i]
+    else
+        y = if sign(s) < 0 0 else 1 end
+    end
+    return y
+end
+
+function update_nising(update_matrix, X)
+    return [update_nising_single(update_matrix, X, i) for i in eachindex(X)]
+end
+
 
 """
     find_attractors_synchronous(
@@ -17,8 +84,7 @@ Find attractors using synchronous updates (deterministic).
 Uses state memoization since each state always leads to the same attractor.
 """
 function find_attractors_synchronous(
-    F::Vector{Function},
-    N::Int;
+    F::Union{Vector{Function}, Vector{Vector{Int}}};
     nsim::Int = 100000,
     exact::Bool = false,
     initial_conditions::Vector{Vector{Int}} = Vector{Vector{Int}}(),
@@ -26,6 +92,7 @@ function find_attractors_synchronous(
     seed::Int = -1,
     debug::Bool = false
 )
+    N = size(F,1)
     # Set random seed
     if seed == -1
         seed = rand(UInt32)
@@ -33,10 +100,25 @@ function find_attractors_synchronous(
     Random.seed!(seed)
     
     # Generate initial conditions
-    if exact
-        initial_conditions = [collect(digits(i, base=2, pad=N)) for i in 0:(2^N - 1)]
-    elseif isempty(initial_conditions)
-        initial_conditions = [rand([0, 1], N) for _ in 1:nsim]
+    generate_initial_conditions = true
+    if !isempty(initial_conditions)
+        init_temp = typeof(initial_conditions)()
+        for init in initial_conditions
+            if length(init) == N
+                push!(init_temp, init)
+            end
+        end
+        if length(init_temp) > 0
+            generate_initial_conditions = false
+            initial_conditions = init_temp
+        end
+    end
+    if generate_initial_conditions
+        if exact
+            initial_conditions = [collect(digits(i, base=2, pad=N)) for i in 0:(2^N - 1)]
+        else
+            initial_conditions = [rand([0, 1], N) for _ in 1:nsim]
+        end
     end
     
     # Data structures
@@ -71,6 +153,7 @@ function find_attractors_synchronous(
             end
             
             # Synchronous update
+
             x_new = [F[i](x) for i in 1:N]
             
             # Check if we've closed a cycle in THIS trajectory
@@ -133,7 +216,7 @@ function find_attractors_synchronous(
     
     # Calculate statistics
     basin_sizes = [count(==(id), values(attractor_dict)) for id in 1:length(attractors)]
-    basin_proportions = basin_sizes ./ length(initial_conditions)
+    basin_proportions = basin_sizes ./ length(attractor_dict)
     avg_times = [sum(times) / length(times) for times in attractor_times]
     
     
@@ -143,8 +226,12 @@ function find_attractors_synchronous(
         time = avg_times,
         flag = converged_flags
     )
+    att_dict = Dict{Vector{Int}, Vector{Vector{Int}}}()
+    for key in keys(attractor_dict)
+        att_dict[key] = attractors[attractor_dict[key]]
+    end
     
-    return df, attractor_dict
+    return df, att_dict
 end
 
 """

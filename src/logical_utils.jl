@@ -1,6 +1,20 @@
+### This file has accompany functions for logical rule processing and simulation. 
+### List of functions here:
+# read_boolean_rules -> dataframe with target and rules
+# tokenize_expression -> get token out of a rule, which basically means the node names, brackets and logical operations. Processes the node names by default and can get a map of unprocessed version too. - Get a dict instead?
+# infix_to_postfix -> convert the tokens to postfix
+# postfix_to_dnf -> convert postfix to a list of list such that each sublist is exclusively an and function (can we come up with a way to do this for ising rule too?)
+# dnf_to_truthtable -> evaluate the dnf to get the truth table pretty straightforward
+# f_from_expr -> For a given rule/expr, tokenize it, get postfix, convert to dnf and extract truthtable. Returns truthtable, dnf and vars.
+# f_from_file -> get the list of truth tables from a file showing Boolean rules
+# parse_boolean_network -> Given a boolean network, returns F (list of truth tables), I, N, degrees, variables, constants
+# create_dnf_evaluator -> for a dnf and a node_to_ids dictionary, generate a function that takes in a state and evaluates the output for that dnf - I assume it to be faster than truth table based evaluation, because truthtable lookups require multiple bin2dec and dec2bin calculations, while this won't. It should also be scalable, since the truthtable method encodes states as integers and larger network states turn into huge decimals. Not sure if that is true though.
+# getNodeFunctions -> from a boolean network file, get update functions for each node. guess I could do it from the truth tables too, but doesn't matter either way. Once a network, so overhead is very small. Would be even smaller if I have a class.
+# is_monotonic -> given a truth table, evaluates if the interaction from each source to the target is monotonic or not
+# boolean_to_topo -> Takes a boolean network file, calculates the turth tables and evaluates the nature of the interactions, stores them as a topo file
+# F_to_topo -> Gets a topo file out of a list of truth tables
+###
 
-using DataFrames
-using CSV
 
 # -------------------------------
 # 1. Read Boolean Rules
@@ -301,6 +315,8 @@ function parse_boolean_network(rules_file::String)
     
     # Create node name to index mapping
     node_names = sort(unique(vcat([x[2] for x in collect(values(truth_table_dict))]...)))
+    nd2 = collect(keys(truth_table_dict))
+    node_names = sort(unique(vcat(node_names, nd2)))
     N = length(node_names)
     node_to_idx = Dict(name => i for (i, name) in enumerate(node_names))
     
@@ -335,7 +351,7 @@ function parse_boolean_network(rules_file::String)
     degrees = [length(x) for x in I]
     
     
-    return F, I, N, degrees, variables, constants
+    return F, I, N, node_names, degrees, variables, constants
 end
 
 
@@ -421,7 +437,7 @@ function getNodeFunctions(rules_file::String)
     # Create node name to index mapping
     node_names = sort(unique(vcat([x[2] for x in collect(values(truth_table_dict))]...)))
     nd2 = collect(keys(truth_table_dict))
-    node_names = sort(unique(vcat([node_names, nd2]...)))
+    node_names = sort(unique(vcat(node_names, nd2)))
     N = length(node_names)
     node_to_idx = Dict(name => i for (i, name) in enumerate(node_names))
     
@@ -452,7 +468,7 @@ function getNodeFunctions(rules_file::String)
     end
     degrees = [length(x) for x in I]
 
-    return F, I, N, degrees, variables, constants
+    return F, I, N, node_names, degrees, variables, constants
 
 end
 
@@ -536,3 +552,4 @@ function F_to_topo(TruthTable::Dict{String, Tuple{Vector{Int}, Vector{String}}},
         end
     end
 end
+

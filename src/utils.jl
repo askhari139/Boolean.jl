@@ -11,10 +11,10 @@ function topo2interaction(topoFile::String, type::Int=0)
         df[:,3] = replace(x -> x == 2 ? -1 : x, df[:,3])
     end
     update_matrix = zeros(typeof(df[1,3]), n_nodes, n_nodes)
-    for i in 1:size(df, 1)
-        j = findfirst(x->x==df[i,1], Nodes)
-        k = findfirst(x->x==df[i,2], Nodes)
-        update_matrix[j,k] = df[i,3]
+    for row in eachrow(df)
+        j = findfirst(x->x==row[1], Nodes)
+        k = findfirst(x->x==row[2], Nodes)
+        update_matrix[j,k] = row[3]
     end
     if type == 1
         replace!(x -> x >0 ? 100*x : x, update_matrix)
@@ -23,7 +23,14 @@ function topo2interaction(topoFile::String, type::Int=0)
     if type == 2
         replace!(x -> x <0 ? 100*x : x, update_matrix)
     end
-    return update_matrix,Nodes
+    return update_matrix,String.(Nodes)
+end
+
+function topo2FIN(topo_file::String)
+    up_mat, Nodes = topo2interaction(topo_file)
+    I = [sum(x .!=0) for x in eachcol(up_mat)]
+    N = length(Nodes)
+    return up_mat, I, N
 end
 
 
@@ -321,4 +328,20 @@ function pyCheck()
         return false
     end
     return true
+end
+
+function JSD(p::Vector{Float64},q::Vector{Float64}; b::Int = 2)
+    mid = (p + q)./2
+    return (kldivergence(p,mid, b) + kldivergence(q, mid, b))./2
+end
+
+function JSD(x::Matrix{Float64}; b::Int = 2)
+    N = size(x, 1)
+    jsd = Dict{Tuple{Int, Int}, Float64}()
+    for i in 1:(N-1)
+        for j in (i+1):N
+            jsd[(i,j)] = JSD(x[i,:], x[j,:]; b = b)
+        end
+    end
+    return jsd
 end

@@ -316,149 +316,6 @@ function format_attractor_states(states::Vector{Vector{Int}})
 end
 
 """
-    simulate_network_folder(folder::String; 
-                            reps::Int=10, 
-                            output_csv::String="results.csv", 
-                            parallel::Bool=false,
-                            # text_to_BN parameters
-                            separator_var_func::String="=", 
-                            original_not::String="NOT", 
-                            original_and::String="AND", 
-                            original_or::String="OR", 
-                            new_not::String=" not ", 
-                            new_and::String=" and ", 
-                            new_or::String=" or ", 
-                            max_degree::Int=15, 
-                            TREATMENT_OF_CONSTANTS::Int=1, 
-                            max_N::Int=10000,
-                            # num_of_steady_states_asynchronous parameters
-                            max_iterations::Int=200, 
-                            nstarts::Int=100, 
-                            cutoff::Int=10, 
-                            report_freq::Int=0, 
-                            sample_frac::Float64=1.0, 
-                            seed::Union{Int,Nothing}=nothing)
-
-Simulates all Boolean networks in the specified folder. Each network is simulated `reps` times.
-
-# Arguments
-- `folder`: Folder path containing text-based Boolean network definitions.
-- `reps`: Number of repetitions per network (default 10).
-- `output_csv`: Output CSV file path (default "results.csv").
-- `parallel`: If true, enables multithreaded execution across networks.
-- `text_to_BN` arguments: Customize Boolean logic parsing and constants treatment.
-- `num_of_steady_states_asynchronous` arguments: Customize convergence behavior and initial condition sampling.
-
-# Output CSV columns
-- `File`: Network filename.
-- `State`: Unique steady state (as a string).
-- `Frequency`: Average basin size (fraction of ICs converging to that state).
-- `Time`: Average convergence time.
-- `Flag`: 1 if valid steady state.
-- `Frustration`: Network frustration score.
-
-"""
-function simulate_network_logical(
-    rules_file::String;
-    folder::String = ".",
-    n_replicates::Int = 3,
-    update_mode::String = "synchronous",
-    max_steps::Int = 1000,
-    n_initial_conditions::Int = 100000,
-    exact::Bool = false,
-    seed::Int = -1
-)
-    @assert update_mode in ["synchronous", "asynchronous"] "Invalid update_mode"
-    
-    # Load network
-    rules_path = joinpath(folder, rules_file)
-    F, I, N, degrees, variables, constants = getNodeFunctions(rules_path)
-    
-    # Adjust parameters based on update mode
-    if update_mode == "asynchronous"
-        exact = false
-        n_initial_conditions = max(2^N, n_initial_conditions)
-        max_steps = max(max_steps, N * 100)  # Need more steps for async
-    else
-        if exact && N > 17
-            @warn "Network too large for exact mode (N=$N). Switching to sampling."
-            exact = false
-        end
-    end
-    
-    # Load topology for frustration
-    interaction_indices = nothing
-    node_names = nothing
-    
-    # if calculate_frustration
-    topo_file = replace(rules_file, ".txt" => ".topo")
-    topo_path = joinpath(folder, topo_file)
-    
-    if !isfile(topo_path)
-        boolean_to_topo(rules_path)
-    end
-    update_matrix, node_names = topo2interaction(topo_path)
-    interaction_indices = findnz(sparse(update_matrix))
-    # end
-    
-    # Run replicates
-    println("Running $n_replicates replicates with $update_mode update mode...")
-    all_results = DataFrame[]
-    
-    for rep in 1:n_replicates
-        println("  Replicate $rep/$n_replicates")
-        
-        if update_mode == "synchronous"
-            result_df, _ = Boolean.find_attractors_synchronous(
-                F, N;
-                nsim = n_initial_conditions,
-                exact = exact,
-                max_steps = max_steps,
-                seed = seed,
-                debug = false
-            )
-        else  # asynchronous
-            result_df = find_attractors_asynchronous(
-                F, N;
-                nsim = n_initial_conditions,
-                max_steps = max_steps,
-                seed = seed,
-                debug = false
-            )
-        end
-        
-        push!(all_results, result_df)
-    end
-    
-    # Combine results
-    combined_df = combine_replicate_results(all_results)
-    
-    # Add frustration
-    combined_df = add_frustration_scores(
-        combined_df, N, variables, constants, 
-        node_names, interaction_indices
-    )
-    combined_df.states = format_attractor_states.(combined_df.states)
-    
-    sort!(combined_df, :basin_size_mean, rev=true)
-    
-    # Save results
-    output_file = replace(rules_file, ".txt" => "_attractors.csv")
-    output_path = joinpath(folder, output_file)
-    CSV.write(output_path, combined_df)
-    
-    nodesName = replace(rules_file, ".txt" => "_nodes.txt")
-    io = open(nodesName, "w")
-    for i in node_names
-        println(io, i)
-    end
-    close(io);
-
-    println("Results saved to: $output_path")
-    
-    return combined_df
-end
-"""
     combine_replicate_results(results::Vector{DataFrame}) -> DataFrame
 
 Combine results from multiple simulation replicates, computing mean and SD.
@@ -553,10 +410,10 @@ function add_frustration_scores(
         for state in states
             
             # Reorder state according to node_positions for topology
-            reordered_state = state[node_positions]
+            # reordered_state = state[node_positions]
             # Call your existing frustration function
             # Assuming signature: frustration(state, interaction_indices; negConv=true)
-            frust = frustration(reordered_state, interaction_indices; negConv=true)
+            frust = frustration(state, interaction_indices; negConv=true)
             push!(frust_values, frust)
         end
         
@@ -568,3 +425,154 @@ function add_frustration_scores(
     
     return df
 end
+
+function simulate_network_logical(
+    rules_file::String;
+    folder::String = ".",
+    n_replicates::Int = 3,
+    update_mode::String = "synchronous",
+    max_steps::Int = 1000,
+    n_initial_conditions::Int = 100000,
+    exact::Bool = false,
+    seed::Int = -1
+)
+    @assert update_mode in ["synchronous", "asynchronous"] "Invalid update_mode"
+    
+    # Load network
+    rules_path = joinpath(folder, rules_file)
+    F, I, N, nodes, degrees, variables, constants = getNodeFunctions(rules_path)
+    
+    # Adjust parameters based on update mode
+    if update_mode == "asynchronous"
+        exact = false
+        n_initial_conditions = max(2^N, n_initial_conditions)
+        max_steps = max(max_steps, N * 100)  # Need more steps for async
+    else
+        if exact && N > 17
+            @warn "Network too large for exact mode (N=$N). Switching to sampling."
+            exact = false
+        elseif nsim > 2^N
+            exact = true
+        end
+    end
+    
+    # Load topology for frustration
+    interaction_indices = nothing
+    node_names = nothing
+    
+    # if calculate_frustration
+    topo_file = replace(rules_file, ".txt" => ".topo")
+    topo_path = joinpath(folder, topo_file)
+    
+    if !isfile(topo_path)
+        boolean_to_topo(rules_path)
+    end
+    update_matrix, node_names = topo2interaction(topo_path)
+    interaction_indices = findnz(sparse(update_matrix))
+    # end
+    
+    # Run replicates
+    println("Running $n_replicates replicates with $update_mode update mode...")
+    all_results = DataFrame[]
+    
+    if exact
+        result_df, _ = find_attractors_synchronous(
+                F;
+                nsim = n_initial_conditions,
+                exact = exact,
+                max_steps = max_steps,
+                seed = seed,
+                debug = false
+            )
+        all_results = [result_df]
+    else
+
+        for rep in 1:n_replicates
+            println("  Replicate $rep/$n_replicates")
+            
+            if update_mode == "synchronous"
+                result_df, _ = find_attractors_synchronous(
+                    F;
+                    nsim = n_initial_conditions,
+                    exact = exact,
+                    max_steps = max_steps,
+                    seed = seed,
+                    debug = false
+                )
+            else  # asynchronous
+                result_df = find_attractors_asynchronous(
+                    F, N;
+                    nsim = n_initial_conditions,
+                    max_steps = max_steps,
+                    seed = seed,
+                    debug = false
+                )
+            end
+            
+            push!(all_results, result_df)
+        end
+    end
+    
+    # Combine results
+    # print(all_results)
+    combined_df = combine_replicate_results(all_results)
+    
+    # Add frustration
+    combined_df = add_frustration_scores(
+        combined_df, N, variables, constants, 
+        node_names, interaction_indices
+    )
+    combined_df.states = format_attractor_states.(combined_df.states)
+    
+    sort!(combined_df, :basin_size_mean, rev=true)
+    
+    # Save results
+    output_file = replace(rules_file, ".txt" => "_attractors.csv")
+    output_path = joinpath(folder, output_file)
+    CSV.write(output_path, combined_df)
+    
+    nodesName = replace(rules_file, ".txt" => "_nodes.txt")
+    io = open(nodesName, "w")
+    for i in node_names
+        println(io, i)
+    end
+    close(io);
+
+    println("Results saved to: $output_path")
+    
+    return combined_df
+end
+
+function compare_logical_ising(bool_file::String; write_attractors::Bool = true, kwargs...)
+    topo_file = replace(bool_file, ".txt" => ".topo")
+    if !isfile(topo_file)
+        boolean_to_topo(bool_file)
+    end
+    stg_logical = bool_to_stg(bool_file; kwargs...)
+    stg_ising = topo_to_stg(topo_file; kwargs...)
+    stg_nising = topo_to_stg(topo_file; mode = :nising, kwargs...)
+
+    stgs = [stg_logical, stg_ising, stg_nising]
+    attractor_dicts = [get_attractors_from_stg(stg) for stg in stgs]
+    attractor_states = unique(vcat([collect(keys(a)) for a in attractor_dicts]...))
+    attractor_dict = Dict{Vector{Vector{Int}}, Vector{Float64}}()
+    for st in attractor_states
+        attractor_dict[st] = [get(a, st, 0.0) for a in attractor_dicts]
+    end
+    basins = reduce(hcat, collect(values(attractor_dict)))
+    states = [join(join.(st, "_"), ";") for st in keys(attractor_dict)]
+    jsd = JSD(basins)
+    modes = ["Logical", "Ising", "nIsing"]
+    jsd_new = Dict{Tuple{String, String}, Float64}()
+    for (key, value) in jsd
+        lg = modes[collect(key)]
+        jsd_new[Tuple(lg)] = value
+    end
+    if write_attractors
+        df = DataFrame(basins', [:Logical, :Ising, :nIsing])
+        df.Attractors = states
+        CSV.write(replace(bool_file, ".txt" => "_attractor_compare.csv"), df)
+    end
+    return attractor_dict, jsd_new
+end
+

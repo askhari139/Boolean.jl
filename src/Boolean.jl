@@ -12,6 +12,7 @@ using Random
 using Combinatorics
 using JSON
 using StatsBase
+using Graphs
 # using PyCall
 import IterTools: product
 # using Plots
@@ -19,19 +20,21 @@ import IterTools: product
 # include("dependencies.jl")
 include("utils.jl")
 include("async_update.jl")
+include("sync_update.jl")
 include("multiLevel_shubham.jl")
 include("CSB.jl")
 include("async_non_matrix.jl")
 include("customFunctions.jl")
 include("oddLevel.jl")
-include("logicalRules.jl")
-include("logicalSim.jl")
+include("logical_utils.jl")
+include("threshold_to_logical.jl")
+include("logicalRules_randNets.jl")
+include("logicalSim_dnf.jl")
 include("bmodel.jl")
-include("logicalProcess.jl")
 include("coherence.jl")
 include("stochasticSim.jl")
 
-println("local")
+# println("local")
 # Determine the absolute path to the Python script's directory
 script_dir = joinpath(@__DIR__)  # @__DIR__ gives path to the current file (src/)
 
@@ -52,8 +55,10 @@ export bmodel_reps,
     coherence,
     coherenceAllNode,
     simulate_async,
-    simulate_multiple_states_to_df,
+    # simulate_multiple_states_to_df,
     simulate_network_logical,
-    simulate_multiple_states_to_df_logical
+    # simulate_multiple_states_to_df_logical,
+    get_synchronous_stg,
+    compare_logical_ising
 
 end # module Boolean
