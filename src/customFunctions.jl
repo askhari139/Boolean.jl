@@ -434,24 +434,32 @@ function simulate_network_logical(
     max_steps::Int = 1000,
     n_initial_conditions::Int = 100000,
     exact::Bool = false,
-    seed::Int = -1
+    seed::Int = -1,
+    method::Symbol=:trajectory
 )
     @assert update_mode in ["synchronous", "asynchronous"] "Invalid update_mode"
     
     # Load network
     rules_path = joinpath(folder, rules_file)
-    F, I, N, nodes, degrees, variables, constants = getNodeFunctions(rules_path)
+    if method == :dnf
+        F, I, N, nodes, degrees, variables, constants = getNodeFunctions(rules_path)
+    elseif method == :trajectory
+        F, I, N, nodes, degrees, variables, constants = parse_boolean_network(rules_path)
+    else
+        println("Unfamiliar method. Using dnfs")
+        F, I, N, nodes, degrees, variables, constants = getNodeFunctions(rules_path)
+    end
     
     # Adjust parameters based on update mode
     if update_mode == "asynchronous"
         exact = false
-        n_initial_conditions = max(2^N, n_initial_conditions)
+        n_initial_conditions = min(2^N, n_initial_conditions)
         max_steps = max(max_steps, N * 100)  # Need more steps for async
     else
         if exact && N > 17
             @warn "Network too large for exact mode (N=$N). Switching to sampling."
             exact = false
-        elseif nsim > 2^N
+        elseif n_initial_conditions > 2^N
             exact = true
         end
     end
@@ -477,7 +485,7 @@ function simulate_network_logical(
     
     if exact
         result_df, _ = find_attractors_synchronous(
-                F;
+                F, I;
                 nsim = n_initial_conditions,
                 exact = exact,
                 max_steps = max_steps,
@@ -492,7 +500,7 @@ function simulate_network_logical(
             
             if update_mode == "synchronous"
                 result_df, _ = find_attractors_synchronous(
-                    F;
+                    F, I;
                     nsim = n_initial_conditions,
                     exact = exact,
                     max_steps = max_steps,

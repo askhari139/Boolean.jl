@@ -1,0 +1,15 @@
+Cdc20
+Cdc25A
+Cdc25B
+Cdc25C
+Cdh1
+Cdk1
+CyclinA
+CyclinA_mRNA
+CyclinB
+Emi1
+FoxM1
+Plk1
+UbcH10
+Wee1
+pAPC

@@ -1,0 +1,7 @@
+Network,n_nodes,n_edges,Method,median_ms,memory_MiB,allocs
+EMT_Switch.txt,12,41,trajectory,5.655563,13.172828674316406,123180
+phase_switch.txt,11,41,trajectory,2.8294375,8.321212768554688,63388
+Phase_Switch_NEW.txt,15,69,trajectory,37.262,71.05278015136719,881860
+phase_switch.txt,11,41,dnf,3.2406665,7.141082763671875,40981
+EMT_Switch.txt,12,41,dnf,6.0158125,10.680198669433594,74146
+Phase_Switch_NEW.txt,15,69,dnf,43.7435625,47.290748596191406,485883

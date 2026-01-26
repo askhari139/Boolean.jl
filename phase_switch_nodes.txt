@@ -1,0 +1,11 @@
+Cdc20
+Cdc25A
+Cdc25C
+Cdh1
+Cdk1
+CyclinA
+CyclinB
+Mad2
+UbcH10
+Wee1
+pAPC

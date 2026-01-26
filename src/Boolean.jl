@@ -55,9 +55,9 @@ export bmodel_reps,
     coherence,
     coherenceAllNode,
     simulate_async,
-    # simulate_multiple_states_to_df,
+    simulate_multiple_states_to_df,
     simulate_network_logical,
-    # simulate_multiple_states_to_df_logical,
+    simulate_multiple_states_to_df_logical,
     get_synchronous_stg,
     compare_logical_ising
 

@@ -84,7 +84,7 @@ Find attractors using synchronous updates (deterministic).
 Uses state memoization since each state always leads to the same attractor.
 """
 function find_attractors_synchronous(
-    F::Union{Vector{Function}, Vector{Vector{Int}}};
+    F::Union{Vector{Function}, Vector{Vector{Int}}, Matrix}, I::Vector{Vector{Int}};
     nsim::Int = 100000,
     exact::Bool = false,
     initial_conditions::Vector{Vector{Int}} = Vector{Vector{Int}}(),
@@ -154,7 +154,7 @@ function find_attractors_synchronous(
             
             # Synchronous update
 
-            x_new = [F[i](x) for i in 1:N]
+            x_new = update_function(F, I, N, :logical, x)
             
             # Check if we've closed a cycle in THIS trajectory
             if haskey(trajectory, x_new)
