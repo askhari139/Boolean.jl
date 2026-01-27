@@ -180,6 +180,7 @@ function get_synchronous_stg(F::Union{Vector{Function}, Vector{Vector{Int}}, Mat
         y = update_function(F,I, N,mode,X)
         if mode == :ising
             X = Int.((X.+1)./2)
+            y = Int.((y.+1)./2)
         end
         # print(X)
         # stg[Int.((X.+1)./2)] = Int.((Boolean.update_function(F,I, N, X) .+1)./2)

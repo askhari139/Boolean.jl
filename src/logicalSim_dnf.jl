@@ -52,7 +52,7 @@ end
 function update_ising(update_matrix, X)
     # println(X)
     # println(s)
-    return [update_ising_single(update_matrix, X, i) for i in eachindex(X)]
+    return Int.([update_ising_single(update_matrix, X, i) for i in eachindex(X)])
 end
 
 function update_nising_single(update_matrix, X, i)
