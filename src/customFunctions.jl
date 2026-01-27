@@ -310,7 +310,10 @@ end
 
 Format attractor states as a readable string.
 """
-function format_attractor_states(states::Vector{Vector{Int}})
+function format_attractor_states(states::Vector{Vector{Int}}, mode::Symbol)
+    if mode == :ising
+        states = [Int.((state .+ 1)./2) for state in states]
+    end
     state_strings = [join(state, "_") for state in states]
     return join(state_strings, ";")
 end
@@ -445,9 +448,26 @@ function simulate_network_logical(
         F, I, N, nodes, degrees, variables, constants = getNodeFunctions(rules_path)
     elseif method == :trajectory
         F, I, N, nodes, degrees, variables, constants = parse_boolean_network(rules_path)
+    elseif method == :ising
+        F, nodes = topo2interaction(rules_file)
+        I = Vector{Vector{Int}}()
+        N = length(nodes)
+        variables = String[]
+        constants = String[]
+        for r in eachindex(nodes)
+            if sum(F[:,r]) == 0
+                push!(constants, nodes[r])
+            else
+                push!(variables, nodes[r])
+            end
+        end
     else
         println("Unfamiliar method. Using dnfs")
         F, I, N, nodes, degrees, variables, constants = getNodeFunctions(rules_path)
+    end
+
+    if method != :ising
+        method = :logical
     end
     
     # Adjust parameters based on update mode
@@ -490,7 +510,8 @@ function simulate_network_logical(
                 exact = exact,
                 max_steps = max_steps,
                 seed = seed,
-                debug = false
+                debug = false,
+                method = method
             )
         all_results = [result_df]
     else
@@ -530,16 +551,22 @@ function simulate_network_logical(
         combined_df, N, variables, constants, 
         node_names, interaction_indices
     )
-    combined_df.states = format_attractor_states.(combined_df.states)
+    combined_df.states = format_attractor_states.(combined_df.states, method)
     
     sort!(combined_df, :basin_size_mean, rev=true)
     
     # Save results
-    output_file = replace(rules_file, ".txt" => "_attractors.csv")
+    md = String(method)
+    repPat = ".txt"
+    if method==:ising
+        repPat = ".topo"
+    end
+    output_file = replace(rules_file, repPat => "_"*md*"_attractors.csv")
     output_path = joinpath(folder, output_file)
     CSV.write(output_path, combined_df)
     
-    nodesName = replace(rules_file, ".txt" => "_nodes.txt")
+
+    nodesName = replace(rules_file, repPat => "_nodes.txt")
     io = open(nodesName, "w")
     for i in node_names
         println(io, i)

@@ -50,7 +50,9 @@ function update_ising_single(update_matrix, X, i)
 end
 
 function update_ising(update_matrix, X)
-    return Int.(([update_ising_single(update_matrix, X, i) for i in eachindex(X)] .+1)./2)
+    # println(X)
+    # println(s)
+    return [update_ising_single(update_matrix, X, i) for i in eachindex(X)]
 end
 
 function update_nising_single(update_matrix, X, i)
@@ -90,7 +92,8 @@ function find_attractors_synchronous(
     initial_conditions::Vector{Vector{Int}} = Vector{Vector{Int}}(),
     max_steps::Int = 1000,
     seed::Int = -1,
-    debug::Bool = false
+    debug::Bool = false,
+    method::Symbol = :logical
 )
     N = size(F,1)
     # Set random seed
@@ -116,8 +119,15 @@ function find_attractors_synchronous(
     if generate_initial_conditions
         if exact
             initial_conditions = [collect(digits(i, base=2, pad=N)) for i in 0:(2^N - 1)]
+            if method==:ising
+                initial_conditions = [Int.((x .-0.5)/0.5) for x in initial_conditions]
+            end
         else
-            initial_conditions = [rand([0, 1], N) for _ in 1:nsim]
+            k = [0,1]
+            if method==:ising
+                k = [-1,1]
+            end
+            initial_conditions = [rand(k, N) for _ in 1:nsim]
         end
     end
     
@@ -154,7 +164,7 @@ function find_attractors_synchronous(
             
             # Synchronous update
 
-            x_new = update_function(F, I, N, :logical, x)
+            x_new = update_function(F, I, N, method, x)
             
             # Check if we've closed a cycle in THIS trajectory
             if haskey(trajectory, x_new)
