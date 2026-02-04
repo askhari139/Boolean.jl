@@ -109,7 +109,7 @@ function simulate_async!(
                     newk = n
                 else
                     if M < 0
-                        k = (-M + di - 1) ÷ di
+                        k = (-M + di - 1) ÷ di # ÷ di gives the integer quotient
                         newk = -k
                     else
                         k = (M + di - 1) ÷ di
