@@ -566,9 +566,9 @@ function simulate_network_logical(
     CSV.write(output_path, combined_df)
     
 
-    nodesName = replace(rules_file, repPat => "_nodes.txt")
+    nodesName = replace(rules_file, repPat => "_logical_nodes.txt")
     io = open(nodesName, "w")
-    for i in node_names
+    for i in nodes
         println(io, i)
     end
     close(io);
