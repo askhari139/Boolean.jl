@@ -68,7 +68,7 @@ end
 function contWeightPert(topoFile::String; nInit::Int64=1000,
     nIter::Int64=100000, mode::String="Async", stateRep::Int64=-1, 
     noise::Float64=0.01, steadyStates::Bool=true, topN::Int=10,
-    frequency::Int=1)
+    frequency::Int=1, noiseType::String = "Additive", noiseMode::String = "All")
     
     # Load network topology
     updMat, nodes = topo2interaction(topoFile)
@@ -76,7 +76,7 @@ function contWeightPert(topoFile::String; nInit::Int64=1000,
     # Run simulation with proper weight function
     weightFunc = defaultWeightsFunction(noise)
     y1 = @elapsed stateMat, states = asyncRandCont(updMat, nInit, nIter, stateRep; 
-        noise=noise, steadyStates=steadyStates, topN=topN, frequency=frequency)
+        noise=noise, steadyStates=steadyStates, topN=topN, frequency=frequency, noiseType=noiseType, noiseMode = noiseMode)
     println("Async rand took $y1")
     nStates = length(states)
     

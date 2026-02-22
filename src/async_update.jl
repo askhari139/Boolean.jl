@@ -368,7 +368,8 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     nInit::Int, nIter::Int, stateRep::Int; randVec::Array{Float64,1} = [0.0], 
     noise::Float64 = 0.01,
     # weightFunc::Function = defaultWeightsFunction(noise), 
-    frequency::Int = 1, steadyStates::Bool = true, topN::Int = 10)
+    frequency::Int = 1, steadyStates::Bool = true, topN::Int = 10, 
+    noiseType::String = "Additive",  noiseMode::String = "All")
     
     n_nodes = size(update_matrix, 1)
     
@@ -392,7 +393,29 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     end
     
     update_matrix = update_matrix'
-    nzId = enumerate(findall(update_matrix .!= 0))
+    nzIdOrig = enumerate(findall(update_matrix .!= 0))
+    nzId = typeof(nzIdOrig)()
+    if noiseMode in ["All", "Activation", "Inhibition"]
+        noiseMode = noiseMode
+    else
+        noiseMode = "All"
+    end
+    if noiseMode == "All"
+        nzId = copy(nzIdOrig)
+    else
+        for (k, l) in nzIdOrig
+            s = sign(update_matrix[l])
+            if noiseMode == "Activation"
+                if update_matrix[l]>0
+                    push!(nzId, (k,l))
+                end
+            else
+                if update_matrix[l]<0
+                    push!(nzId, (k,l))
+                end
+            end
+        end
+    end
     
     # if typeof(update_matrix) == Adjoint{Int64, Matrix{Int64}}
     #     if randVec == [0.0]
@@ -406,6 +429,7 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     #     randVec = [update_matrix[j] for (i, j) in nzId]
     # end
     update_matrix = float(update_matrix)
+    update_matrix_original = copy(update_matrix)
     
     # Pre-allocate state matrix
     stateMatrix = zeros(Int, nInit, nIter)
@@ -440,7 +464,15 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
             if iszero(j % frequency)
                 randVec = randn(length(nzId))*noise
                 for (k, l) in nzId
-                    rVal = update_matrix[l] + randVec[k]
+                    if noiseType == "Additive"
+                        rVal = update_matrix[l] + randVec[k]
+                    elseif noiseType == "Multiplicative"
+                        rVal = update_matrix[l]*(1 + randVec[k])
+                    elseif noiseType == "Fluctuating"
+                        rVal = update_matrix_original[l] + randVec[k]
+                    else
+                        rVal = update_matrix[l] + randVec[k]
+                    end
                     if update_matrix[l] > 0
                         rVal = min(max(rVal, 0), 1)
                     else
