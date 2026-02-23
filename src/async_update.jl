@@ -394,14 +394,14 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     
     update_matrix = update_matrix'
     nzIdOrig = enumerate(findall(update_matrix .!= 0))
-    nzId = typeof(nzIdOrig)()
+    nzId = typeof(collect(nzIdOrig))()
     if noiseMode in ["All", "Activation", "Inhibition"]
         noiseMode = noiseMode
     else
         noiseMode = "All"
     end
     if noiseMode == "All"
-        nzId = copy(nzIdOrig)
+        nzId = collect(nzIdOrig)
     else
         for (k, l) in nzIdOrig
             s = sign(update_matrix[l])
