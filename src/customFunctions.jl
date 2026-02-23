@@ -105,7 +105,7 @@ function contWeightPert(topoFile::String; nInit::Int64=1000,
     
     # Save results
     baseName = replace(topoFile, ".topo" => "")
-    baseName = baseName*"_"*string(noise)
+    baseName = baseName*"_"*noiseType"_"*(if noiseMode != "All" noiseMode*"_" else "" end)*string(noise)
     
     # Save trajectory matrix
     trajectoryDF = DataFrame(stateMat, :auto)
