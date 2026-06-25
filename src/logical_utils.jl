@@ -44,6 +44,9 @@ end
 # 2. Tokenize Expression
 # -------------------------------
 function tokenize_expression(expr::String, getOrig::Bool)
+    expr = replace(expr, r"\s*&\s*" => " AND ")
+    expr = replace(expr, r"\s*\|\s*" => " OR ")
+    expr = replace(expr, r"!\s*" => "NOT ")
     expr = strip(expr)
     if (!getOrig)
         expr = uppercase(expr)
