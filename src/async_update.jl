@@ -470,7 +470,7 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
                     if noiseType == "Additive"
                         rVal = update_matrix[l] + randVec[k]
                     elseif noiseType == "Multiplicative"
-                        target = update_matrix[l] > 0 ? 1 : -1
+                        target = update_matrix_original[l] > 0 ? 1 : -1
                         rVal = update_matrix[l] + (target - update_matrix[l])*randVec[k]
                     elseif noiseType == "Fluctuating"
                         rVal = update_matrix_original[l] + randVec[k]
