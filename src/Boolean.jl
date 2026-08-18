@@ -25,6 +25,7 @@ include("multiLevel_shubham.jl")
 include("CSB.jl")
 include("async_non_matrix.jl")
 include("customFunctions.jl")
+include("weightEnsemble.jl")
 include("oddLevel.jl")
 include("logical_utils.jl")
 include("threshold_to_logical.jl")
@@ -52,6 +53,10 @@ export bmodel_reps,
     getSSListRand,
     scanNodeTurnOff,
     getNodes,
+    buildWeightStationaryDist,
+    resampleRandVecs,
+    detResamplePert,
+    writeWeightedTopo,
     coherence,
     coherenceAllNode,
     simulate_async,
