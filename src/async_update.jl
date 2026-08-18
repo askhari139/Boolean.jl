@@ -267,7 +267,7 @@ function asyncRandContOld(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     
     # Generate initial conditions OUTSIDE the main loop
     if steadyStates
-        updm = sign.(update_matrix)
+        updm = Int.(sign.(update_matrix))
         states_df, frust_df = asyncUpdate(updm, 10000,1000,stateRep,false,Int[],Int[],Int[])
         
         if topN != 0
@@ -375,7 +375,7 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     
     # Generate initial conditions OUTSIDE the main loop
     if steadyStates
-        updm = sign.(update_matrix)
+        updm = Int.(sign.(update_matrix))
         states_df, frust_df = asyncUpdate(updm, 10000,1000,stateRep,false,Int[],Int[],Int[])
         
         if topN != 0
