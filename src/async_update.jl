@@ -429,6 +429,9 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
     #     randVec = [update_matrix[j] for (i, j) in nzId]
     # end
     update_matrix = float(update_matrix)
+    # if noiseType == "Multiplicative"
+    #     update_matrix = update_matrix / 2
+    # end
     update_matrix_original = copy(update_matrix)
     
     # Pre-allocate state matrix
@@ -467,7 +470,8 @@ function asyncRandCont(update_matrix::Union{Array{Int,2}, Array{Float64,2}},
                     if noiseType == "Additive"
                         rVal = update_matrix[l] + randVec[k]
                     elseif noiseType == "Multiplicative"
-                        rVal = update_matrix[l]*(1 + randVec[k])
+                        target = update_matrix[l] > 0 ? 1 : -1
+                        rVal = update_matrix[l] + (target - update_matrix[l])*randVec[k]
                     elseif noiseType == "Fluctuating"
                         rVal = update_matrix_original[l] + randVec[k]
                     else
