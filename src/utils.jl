@@ -197,6 +197,19 @@ function signVec(state)
     sign.(state)
 end
 
+"""
+    scalarUpdate(raw, stateRep, prevVal)
+
+Scalar equivalent of `updFunc = ifelse(stateRep == 0, zeroConv, signVec)`
+followed by the "if the weighted sum is exactly 0, keep the previous value"
+rule (`s1[idx] == 0 ? state[idx] : s1[idx]` in `asyncRandCont`), applied to a
+single node's raw weighted-sum value instead of a whole-vector matmul result.
+"""
+@inline function scalarUpdate(raw::Float64, stateRep::Int, prevVal::Float64)
+    newVal = stateRep == 0 ? (raw > 0 ? 1.0 : 0.0) : (raw > 0 ? 1.0 : (raw < 0 ? -1.0 : 0.0))
+    return newVal == 0.0 ? prevVal : newVal
+end
+
 function getNodes(topoFile::String)
     nodesName = replace(topoFile, ".topo" => "_nodes.txt")
     update_matrix,Nodes = topo2interaction(topoFile)
